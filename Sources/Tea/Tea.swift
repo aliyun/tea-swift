@@ -1,6 +1,8 @@
 import Alamofire
 import Foundation
 import Swift
+import AwaitKit
+import PromiseKit
 
 public enum TeaException: Error {
     case Error(Any?)
@@ -49,22 +51,15 @@ open class TeaCore: NSObject {
     }
 
     public static func doAction(_ request: TeaRequest, _ config: URLSessionConfiguration = URLSessionConfiguration.default) -> TeaResponse {
-        var done: Bool = false
-        var res: DefaultDataResponse?
-        Alamofire.request(
+        let promise = Alamofire.request(
                 TeaCore.composeUrl(request),
                 method: HTTPMethod(rawValue: request.method) ?? HTTPMethod.get,
                 parameters: request.query,
                 encoding: URLEncoding.default,
                 headers: request.headers
-        ).response { (response) in
-            res = response
-            done = true
-        }
-        while done == false {
-            RunLoop.current.run(mode: RunLoop.Mode.default, before: Date.distantFuture);
-        }
-        return TeaResponse(res!)
+        ).response();
+        let res: DefaultDataResponse = try! await(promise)
+        return TeaResponse(res)
     }
 
     public static func doAction(_ request: TeaRequest, _ runtime: [String: Any]) -> TeaResponse {
@@ -82,7 +77,7 @@ open class TeaCore: NSObject {
         return TeaCore.doAction(request, config)
     }
 
-    public static func allowRetry(_ dict: Any?, _ retryTimes: Int, _: Int32) -> Bool {
+    public static func allowRetry(_ dict: Any?, _ retryTimes: Int) -> Bool {
         let dic = dict as? [String: Any]
         let isNotExists = dic?["maxAttempts"] == nil
         if dict == nil || isNotExists {
@@ -118,7 +113,13 @@ open class TeaCore: NSObject {
 
 open class TeaConverter: NSObject {
     public static func merge(_ dict: [String: Any]...) -> [String: Any] {
-        return [String: Any]()
+        var mergeDict: [String: Any] = [String: Any]()
+        for dic in dict {
+            for (k, v) in dic {
+                mergeDict[k] = v
+            }
+        }
+        return mergeDict
     }
 }
 
@@ -177,13 +178,6 @@ open class TeaRequest: NSObject {
     public var port: Int = 80
 
     public var host: String = ""
-
-    public func getBaseUrl() -> String {
-        if host == "" {
-            host = headers["host"] ?? ""
-        }
-        return protocol_ + "://" + host
-    }
 
     public override init() {
     }
