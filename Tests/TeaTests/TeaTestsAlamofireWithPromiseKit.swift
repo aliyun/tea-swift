@@ -12,64 +12,100 @@ import PromiseKit
 
 final class TeaTestsAlamofireWithPromiseKit: XCTestCase {
     var url: String = "https://httpbin.org/get"
-    var config: URLSessionConfiguration = URLSessionConfiguration.default
-    var delegate: SessionDelegate = SessionDelegate()
-    var sessionManager: SessionManager? = nil
+    var sessionManager: SessionManager?
+    let queue: DispatchQueue = DispatchQueue(label: "AlamofirePromiseKit.TestsQueue")
 
     override func setUp() {
         super.setUp()
+        let config: URLSessionConfiguration = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10000
         config.timeoutIntervalForResource = 10000
         sessionManager = Alamofire.SessionManager(configuration: config)
     }
 
     func testDataRequestResponse() {
-        guard let promise = sessionManager?.request(url, method: HTTPMethod.get).response() else {
-            return
-        }
-        let res: DefaultDataResponse = try! await(promise)
+        let promise = sessionManager?.request(url, method: HTTPMethod.get).response(queue: queue)
+        let res: DefaultDataResponse = try! await(promise!)
         XCTAssertNotNil(res)
+
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+
+        let data: [String: AnyObject] = try! JSONSerialization.jsonObject(with: res.data!, options: .mutableContainers) as! [String: AnyObject]
         let result: String = String(data: res.data!, encoding: .utf8) ?? ""
         XCTAssertFalse(result.isEmpty)
+
+        let url: String = data["url"] as! String
+        XCTAssertEqual("https://httpbin.org/get", url)
     }
 
     func testDataRequestResponseString() {
-        guard let promise = sessionManager?.request(url, method: HTTPMethod.get).responseString() else {
-            return
-        }
-        let res: DataResponse<String> = try! await(promise)
+        let promise: Promise? = sessionManager?.request(url, method: HTTPMethod.get).responseString(queue: queue)
+        let res: DataResponse<String> = try! await(promise!)
         XCTAssertNotNil(res)
+
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+
         let result: String = String(data: res.data!, encoding: .utf8) ?? ""
         XCTAssertFalse(result.isEmpty)
     }
 
     func testDataRequestResponseData() {
-        guard let promise = sessionManager?.request(url, method: HTTPMethod.get).responseData() else {
-            return
-        }
-        let res: DataResponse<Data> = try! await(promise)
+        let promise = sessionManager?.request(url, method: HTTPMethod.get).responseData(queue: queue)
+        let res: DataResponse<Data> = try! await(promise!)
         XCTAssertNotNil(res)
+
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+
         let result: String = String(data: res.data!, encoding: .utf8) ?? ""
         XCTAssertFalse(result.isEmpty)
     }
 
     func testDataRequestResponseJSON() {
-        guard let promise = sessionManager?.request(url, method: HTTPMethod.get).responseJSON() else {
-            return
-        }
-        let res: DataResponse<Any> = try! await(promise)
+        let promise: Promise? = sessionManager?.request(url, method: HTTPMethod.get).responseJSON(queue: queue)
+        let res: DataResponse<Any> = try! await(promise!)
         XCTAssertNotNil(res)
+
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+
         let result: String = String(data: res.data!, encoding: .utf8) ?? ""
         XCTAssertFalse(result.isEmpty)
     }
 
     func testDataRequestResponsePropertyList() {
-        guard let promise = sessionManager?.request(url, method: HTTPMethod.get).responsePropertyList() else {
-            return
-        }
-        let res: DataResponse<Any> = try! await(promise)
+        let promise: Promise? = sessionManager?.request(url, method: HTTPMethod.get).responsePropertyList(queue: queue)
+        let res: DataResponse<Any> = try! await(promise!)
         XCTAssertNotNil(res)
+
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+
         let result: String = String(data: res.data!, encoding: .utf8) ?? ""
         XCTAssertFalse(result.isEmpty)
     }
+
+    func testDownloadRequestResponse() {
+        let promise: Promise? = sessionManager?.download(url).response(queue: queue)
+        let res: DefaultDownloadResponse = try! await(promise!)
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+    }
+
+    func testDownloadRequestResponseData() {
+        let promise: Promise? = sessionManager?.download(url).responseData(queue: queue)
+        let res: DownloadResponse<Data> = try! await(promise!)
+        let code: Int = res.response?.statusCode ?? -1
+        XCTAssertEqual(200, code)
+    }
+
+    static var allTests = [
+        ("testDataRequestResponse", testDataRequestResponse),
+        ("testDataRequestResponseString", testDataRequestResponseString),
+        ("testDataRequestResponseData", testDataRequestResponseData),
+        ("testDataRequestResponseJSON", testDataRequestResponseJSON),
+        ("testDataRequestResponsePropertyList", testDataRequestResponsePropertyList),
+    ]
 }
