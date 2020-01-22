@@ -4,7 +4,7 @@ English | [简体中文](./README-CN.md)
 
 ## Alibaba Cloud Tea for Swift(5.1)
 
-[![Build Status](https://travis-ci.org/aliyun/tea-swift.svg?branch=master)](https://travis-ci.org/aliyun/tea-swift)
+[![Travis CI Build Status](https://img.shields.io/travis/aliyun/tea-swift?logo=travis)](https://travis-ci.org/aliyun/tea-swift)
 [![codecov](https://codecov.io/gh/aliyun/tea-swift/branch/master/graph/badge.svg)](https://codecov.io/gh/aliyun/tea-swift)
 
 ## Requirements
