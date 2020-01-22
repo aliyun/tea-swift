@@ -17,5 +17,4 @@ flags:
       - Tests/
 
 ignore:
-  - "Tests/" # ignore Tests
-  - "Tests/TeaTests/" # ignore Tests/TeaTests
+  - "Tests/**/*" # ignore Tests
