@@ -6,70 +6,68 @@ import Foundation
 import Alamofire
 import PromiseKit
 
-extension Alamofire.DataRequest {
-    public func response(queue: DispatchQueue? = nil) -> Promise<DefaultDataResponse> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DataRequest.response", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            response(queue: TeaQueue) { response in
+let defaultQueue = DispatchQueue(label: "AlamofirePromiseKit.queue")
+
+public extension Alamofire.DataRequest {
+    func response(queue: DispatchQueue? = nil) -> Promise<DefaultDataResponse> {
+        Promise { seal in
+            response(queue: queue ?? defaultQueue) { response in
                 seal.fulfill(response)
             }
         }
     }
 
-    public func responseString() -> Promise<DataResponse<String>> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DataRequest.responseString", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            responseString(queue: TeaQueue) { response in
+    func responseString(queue: DispatchQueue? = nil) -> Promise<DataResponse<String>> {
+        Promise { seal in
+            responseString(queue: queue ?? defaultQueue) { response in
                 seal.fulfill(response)
             }
         }
     }
 
-    public func responseData() -> Promise<DataResponse<Data>> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DataRequest.responseData", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            responseData(queue: TeaQueue) { response in
+    func responseData(queue: DispatchQueue? = nil) -> Promise<DataResponse<Data>> {
+        Promise { seal in
+            responseData(queue: queue ?? defaultQueue) { response in
                 seal.fulfill(response)
             }
         }
     }
 
-    public func responseJSON(options: JSONSerialization.ReadingOptions = .allowFragments) -> Promise<DataResponse<Any>> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DataRequest.responseJSON", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            responseJSON(queue: TeaQueue, options: options) { response in
+    func responseJSON(
+            queue: DispatchQueue? = nil,
+            options: JSONSerialization.ReadingOptions = .allowFragments
+    ) -> Promise<DataResponse<Any>> {
+        Promise { seal in
+            responseJSON(queue: queue ?? defaultQueue, options: options) { response in
                 seal.fulfill(response)
             }
         }
     }
 
-    public func responsePropertyList(
+    func responsePropertyList(
             queue: DispatchQueue? = nil,
             options: PropertyListSerialization.ReadOptions = PropertyListSerialization.ReadOptions()
     ) -> Promise<DataResponse<Any>> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DataRequest.responsePropertyList", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            responsePropertyList(queue: TeaQueue, options: options) { response in
+        Promise { seal in
+            responsePropertyList(queue: queue ?? defaultQueue, options: options) { response in
                 seal.fulfill(response)
             }
         }
     }
 }
 
-extension Alamofire.DownloadRequest {
-    public func response(_: PMKNamespacer, queue: DispatchQueue? = nil) -> Promise<DefaultDownloadResponse> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DownloadRequest.response", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            response(queue: TeaQueue) { response in
+public extension Alamofire.DownloadRequest {
+    func response(queue: DispatchQueue? = nil) -> Promise<DefaultDownloadResponse> {
+        Promise { seal in
+            response(queue: queue ?? defaultQueue) { response in
                 seal.fulfill(response)
             }
         }
     }
 
-    public func responseData(queue: DispatchQueue? = nil) -> Promise<DownloadResponse<Data>> {
-        let TeaQueue: DispatchQueue = DispatchQueue(label: "TeaQueue.Alamofire.DownloadRequest.responseData", attributes: .init(rawValue: 0))
-        return Promise { seal in
-            responseData(queue: TeaQueue) { response in
+    func responseData(queue: DispatchQueue? = nil) -> Promise<DownloadResponse<Data>> {
+        Promise { seal in
+            responseData(queue: queue ?? defaultQueue) { response in
                 seal.fulfill(response)
             }
         }
