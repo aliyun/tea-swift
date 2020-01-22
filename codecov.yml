@@ -18,3 +18,4 @@ flags:
 
 ignore:
   - "Tests/" # ignore Tests
+  - "Tests/TeaTests/" # ignore Tests/TeaTests
