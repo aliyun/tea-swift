@@ -4,6 +4,8 @@ English | [简体中文](./README-CN.md)
 
 ## Alibaba Cloud Tea for Swift(5.1)
 
+[![Build Status](https://travis-ci.org/aliyun/tea-swift.svg?branch=master)](https://travis-ci.org/aliyun/tea-swift)
+
 ## Requirements
 
 - iOS 13.3+ / macOS 10.15+
