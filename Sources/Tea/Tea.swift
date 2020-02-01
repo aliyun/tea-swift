@@ -1,8 +1,8 @@
 import Alamofire
 import Foundation
 import Swift
+import AlamofirePromiseKit
 import AwaitKit
-import PromiseKit
 
 public enum TeaException: Error {
     case Error(Any?)

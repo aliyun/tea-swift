@@ -11,19 +11,17 @@ let package = Package(
                     targets: ["Tea"])
         ],
         dependencies: [
-            .package(url: "https://github.com/Alamofire/Alamofire.git", from: "4.9.1"),
-            .package(url: "https://github.com/yannickl/AwaitKit.git", from: "5.2.0")
+            .package(url: "https://github.com/aliyun/AlamofirePromiseKit.git", from: "1.0.0")
         ],
         targets: [
             .target(
                     name: "Tea",
                     dependencies: [
-                        "Alamofire",
-                        "AwaitKit"
+                        "AlamofirePromiseKit"
                     ]),
             .testTarget(
                     name: "TeaTests",
-                    dependencies: ["Tea", "Alamofire", "AwaitKit"])
+                    dependencies: ["Tea", "AlamofirePromiseKit"])
         ],
         swiftLanguageVersions: [.v5]
 )
