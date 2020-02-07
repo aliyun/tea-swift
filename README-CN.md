@@ -4,6 +4,7 @@
 
 ## Alibaba Cloud Tea for Swift(5.1)
 
+[![Cocoapod Version](https://img.shields.io/cocoapods/v/Tea)](https://cocoapods.org/pods/Tea)
 [![Travis CI Build Status](https://img.shields.io/travis/aliyun/tea-swift?logo=travis)](https://travis-ci.org/aliyun/tea-swift)
 [![codecov](https://codecov.io/gh/aliyun/tea-swift/branch/master/graph/badge.svg)](https://codecov.io/gh/aliyun/tea-swift)
 
@@ -52,16 +53,20 @@ dependencies: [
 ```
 
 ## 问题
+
 [提交 Issue](https://github.com/aliyun/tea-swift/issues/new)，不符合指南的问题可能会立即关闭。
 
 ## 发行说明
+
 每个版本的详细更改记录在[发行说明](./ChangeLog.md)中。
 
 ## 相关
-* [OpenAPI Explorer](https://api.aliyun.com/)
-* [最新源码](https://github.com/aliyun/tea-swift)
+
+- [OpenAPI Explorer](https://api.aliyun.com/)
+- [最新源码](https://github.com/aliyun/tea-swift)
 
 ## 许可证
+
 [Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 Copyright (c) 2009-present, Alibaba Cloud All rights reserved.
