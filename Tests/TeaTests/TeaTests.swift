@@ -142,12 +142,12 @@ final class TeaTests: XCTestCase {
     }
 
     func testTeaCoreAllowRetry() {
-        var result: Bool = TeaCore.allowRetry(nil, 3)
+        var result: Bool = TeaCore.allowRetry(nil, 3, 0)
         XCTAssertFalse(result)
 
         var dict: [String: Int] = [String: Int]()
         dict["maxAttempts"] = 5
-        result = TeaCore.allowRetry(dict, 0)
+        result = TeaCore.allowRetry(dict, 0, 0)
         XCTAssertTrue(result)
     }
 
