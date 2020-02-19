@@ -77,7 +77,7 @@ open class TeaCore: NSObject {
         return TeaCore.doAction(request, config)
     }
 
-    public static func allowRetry(_ dict: Any?, _ retryTimes: Int) -> Bool {
+    public static func allowRetry(_ dict: Any?, _ retryTimes: Int, _ now: Int32) -> Bool {
         let dic = dict as? [String: Any]
         let isNotExists = dic?["maxAttempts"] == nil
         if dict == nil || isNotExists {
