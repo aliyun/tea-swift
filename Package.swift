@@ -11,17 +11,17 @@ let package = Package(
                     targets: ["Tea"])
         ],
         dependencies: [
-            .package(url: "https://github.com/aliyun/AlamofirePromiseKit.git", from: "1.0.0")
+            .package(url: "https://github.com/aliyun/AlamofirePromiseKit.git", from: "1.0.0"),
+            .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git", from: "5.0.0"),
+            .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", from: "1.3.0")
         ],
         targets: [
             .target(
                     name: "Tea",
-                    dependencies: [
-                        "AlamofirePromiseKit"
-                    ]),
+                    dependencies: ["AlamofirePromiseKit", "CryptoSwift", "SwiftyJSON"]),
             .testTarget(
                     name: "TeaTests",
-                    dependencies: ["Tea", "AlamofirePromiseKit"])
+                    dependencies: ["Tea", "AlamofirePromiseKit", "CryptoSwift", "SwiftyJSON"])
         ],
         swiftLanguageVersions: [.v5]
 )
