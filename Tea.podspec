@@ -5,7 +5,7 @@ Pod::Spec.new do |spec|
   spec.license      = "Apache 2.0"
   spec.summary      = "Alibaba Cloud Tea for Swift"
   spec.homepage     = "https://github.com/aliyun/tea-swift" 
-  spec.author       = { "wb-hx510875" => "wb-hx510875@alibaba-inc.com" }
+  spec.author       = { "Alibaba Cloud SDK" => "sdk-team@alibabacloud.com" }
 
   spec.source       = { :git => spec.homepage + '.git', :tag => spec.version }
   spec.source_files = 'Sources/**/*.swift'
