@@ -24,23 +24,16 @@ open class TeaCore: NSObject {
         }
         url = url + request.pathname
         if request.query.count > 0 {
-            var arr: [String] = [String]()
-            for (key, value) in request.query {
-                if value is String, (value as! String).isEmpty {
-                    continue
-                }
-                arr.append(key + "=" + (value as! String))
-            }
-            arr = arr.sorted()
-            if arr.count > 0 {
+            let query: String = httpQueryString(request.query)
+            if query.lengthOfBytes(using: .utf8) > 0 {
                 if url.contains("?") {
                     if url.last != "&" {
-                        url = url + "&"
+                        url += "&"
                     }
+                    url += query
                 } else {
-                    url = url + "?"
+                    url += "?" + query
                 }
-                url = url + arr.joined(separator: "&")
             }
         }
         return url
@@ -221,4 +214,24 @@ open class TeaResponse: CustomDebugStringConvertible {
     public var debugDescription: String {
         return description
     }
+}
+
+func httpQueryString(_ query: [String: Any]) -> String {
+    var url: String = ""
+    if query.count > 0 {
+        let keys = Array(query.keys).sorted()
+        var arr: [String] = [String]()
+        for key in keys {
+            let value: String = "\(query[key] ?? "")"
+            if value.isEmpty {
+                continue
+            }
+            arr.append(key + "=" + "\(value)".urlEncode())
+        }
+        arr = arr.sorted()
+        if arr.count > 0 {
+            url = arr.joined(separator: "&")
+        }
+    }
+    return url
 }
