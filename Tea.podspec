@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
 
   spec.name         = "Tea"
-  spec.version      = "0.2.0"
+  spec.version      = "0.3.0"
   spec.license      = "Apache 2.0"
   spec.summary      = "Alibaba Cloud Tea for Swift"
   spec.homepage     = "https://github.com/aliyun/tea-swift" 
