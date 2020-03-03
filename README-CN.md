@@ -21,7 +21,7 @@
 [CocoaPods](https://cocoapods.org) 是 Cocoa 项目管理工具。请访问其官方网站获取关于 CocoaPods 的使用和安装说明。要使用 CocoaPods 将 `Tea` 集成到你的 Xcode 项目中，需要在 `Podfile` 中定义以下内容:
 
 ```ruby
-pod 'Tea', '~> 0.2.0'
+pod 'Tea', '~> 0.3.0'
 ```
 
 ### Carthage
@@ -29,7 +29,7 @@ pod 'Tea', '~> 0.2.0'
 要使用 [Carthage](https://github.com/Carthage/Carthage) 将 Tea 集成到你的 Xcode 项目中，需要在 `Cartfile` 中定义以下内容:
 
 ```ogdl
-github "aliyun/Tea" "0.2.0"
+github "aliyun/Tea" "0.3.0"
 ```
 
 ### Swift 包管理工具
@@ -38,7 +38,7 @@ github "aliyun/Tea" "0.2.0"
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/aliyun/tea-swift.git", from: "0.2.0")
+    .package(url: "https://github.com/aliyun/tea-swift.git", from: "0.3.0")
 ]
 ```
 
