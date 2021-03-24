@@ -62,7 +62,7 @@ Detailed changes for each release are documented in the [release notes](./Change
 
 ## References
 
-- [OpenAPI Explorer](https://api.aliyun.com/)
+- [OpenAPI Developer Portal](https://next.api.aliyun.com/)
 - [Latest Release](https://github.com/aliyun/tea-swift)
 
 ## License
