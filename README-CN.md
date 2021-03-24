@@ -62,7 +62,7 @@ dependencies: [
 
 ## 相关
 
-- [OpenAPI Explorer](https://api.aliyun.com/)
+- [OpenAPI 开发者门户](https://next.api.aliyun.com/)
 - [最新源码](https://github.com/aliyun/tea-swift)
 
 ## 许可证
