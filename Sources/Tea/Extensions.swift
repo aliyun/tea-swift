@@ -1,7 +1,3 @@
-//
-// Created by Axios on 2020/2/21.
-//
-
 import Foundation
 
 extension String {
@@ -33,4 +29,5 @@ extension String {
         !isEmpty && rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil
     }
 }
+
 

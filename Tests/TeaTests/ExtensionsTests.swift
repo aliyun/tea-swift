@@ -1,7 +1,3 @@
-//
-// Created by Axios on 2020/2/21.
-//
-
 import Foundation
 import XCTest
 @testable import Tea

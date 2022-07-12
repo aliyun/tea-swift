@@ -1,3 +1,4 @@
+import Alamofire
 import Foundation
 import XCTest
 @testable import Tea
@@ -23,7 +24,7 @@ final class TeaTests: XCTestCase {
 
         request.query["foo"] = ""
         url = TeaCore.composeUrl(request)
-        XCTAssertEqual("http://fake.domain.com:8080/index.html", url)
+        XCTAssertEqual("http://fake.domain.com:8080/index.html?foo=", url)
 
         request.query["foo"] = "bar"
         url = TeaCore.composeUrl(request)
@@ -52,13 +53,77 @@ final class TeaTests: XCTestCase {
         model.marker = "fake-marker"
         model.owner = "fake-owner"
 
-        let dict: [String: Any] = model.toMap()
-        let limit: Int = dict["limit"] as! Int
-        let marker: String = dict["marker"] as! String
-        let owner: String = dict["owner"] as! String
-        XCTAssertEqual(100, limit)
-        XCTAssertEqual("fake-marker", marker)
-        XCTAssertEqual("fake-owner", owner)
+        var dict: [String: Any] = model.toMap()
+        XCTAssertEqual(100, dict["limit"] as! Int)
+        XCTAssertEqual("fake-marker", dict["marker"] as! String)
+        XCTAssertEqual("fake-owner", dict["owner"] as! String)
+        
+        let response = ListDriveResponse()
+        response.requestId = "id"
+        response.items = ["key1": "value1", "key2": "value2"]
+        response.list = ["1", "2", "3"]
+        response.nextMarker = 1
+        let subModel = ListDriveResponse.Complex()
+        subModel.name = "test"
+        subModel.code = 2
+        response.model = subModel
+        dict = response.toMap()
+        XCTAssertEqual("id", dict["requestId"] as! String)
+        XCTAssertEqual("value1", (dict["items"] as! [String: String])["key1"])
+        XCTAssertEqual("value2", (dict["items"] as! [String: String])["key2"])
+        XCTAssertEqual("1", (dict["list"] as! [String])[0])
+        XCTAssertEqual("2", (dict["list"] as! [String])[1])
+        XCTAssertEqual("3", (dict["list"] as! [String])[2])
+        XCTAssertEqual(1, dict["nextMarker"] as! Int)
+        XCTAssertEqual("test", (dict["model"] as! [String: Any])["name"] as! String)
+        XCTAssertEqual(2, (dict["model"] as! [String: Any])["code"] as! NSNumber)
+    }
+    
+    func testTeaModelFromMap() {
+        var dict: [String: Any] = [String: Any]()
+        dict["limit"] = 1
+        dict["marker"] = "marker"
+        dict["owner"] = "owner"
+        var model: ListDriveRequestModel = ListDriveRequestModel()
+        model.fromMap(dict)
+        XCTAssertEqual(1, model.limit)
+        XCTAssertEqual("marker", model.marker)
+        XCTAssertEqual("owner", model.owner)
+        
+        model = TeaConverter.fromMap(ListDriveRequestModel(), dict)
+        XCTAssertEqual(1, model.limit)
+        XCTAssertEqual("marker", model.marker)
+        XCTAssertEqual("owner", model.owner)
+        
+        let response = ListDriveResponse([
+            "requestId": "id",
+            "items": ["key1": "value1", "key2": "value2"],
+            "list": ["1", "2", "3"],
+            "nextMarker": 1,
+            "model": [
+                "name": "test1",
+            ],
+            "test": [[
+                "name": "hey",
+                "code": 1
+            ]]
+        ])
+        XCTAssertEqual("id", response.requestId)
+        XCTAssertEqual("value1", response.items?["key1"] as! String)
+        XCTAssertEqual("value2", response.items?["key2"] as! String)
+        XCTAssertEqual("1", response.list?[0] as! String)
+        XCTAssertEqual("2", response.list?[1] as! String)
+        XCTAssertEqual("3", response.list?[2] as! String)
+        XCTAssertEqual(1, response.nextMarker as! Int)
+        XCTAssertEqual("test1", response.model?.name)
+        response.fromMap([
+            "model": [
+                "name": "test2",
+                "code": 2
+            ]
+        ])
+        XCTAssertEqual("test2", response.model?.name)
+        XCTAssertEqual(2, response.model?.code)
     }
 
     func testTeaModelValidate() {
@@ -68,75 +133,70 @@ final class TeaTests: XCTestCase {
             thrownError = $0
         }
         XCTAssertTrue(
-                thrownError is TeaException,
+                thrownError is ValidateError,
                 "Unexpected error type: \(type(of: thrownError))"
         )
+        XCTAssertEqual("owner is required", (thrownError as! ValidateError).message)
         model.owner = "notEmpty"
 
-        XCTAssertTrue(try model.validate())
-    }
-
-    func testTeaModelToModel() {
-        var dict: [String: Any] = [String: Any]()
-        dict["limit"] = 1
-        dict["marker"] = "marker"
-        dict["owner"] = "owner"
-        let model = TeaModel.toModel(dict, ListDriveRequestModel()) as! ListDriveRequestModel
-        XCTAssertEqual(1, model.limit)
-        XCTAssertEqual("marker", model.marker)
-        XCTAssertEqual("owner", model.owner)
+        try? model.validate()
     }
 
     func testTeaCoreSleep() {
-        let sleep: Int = 10
+        let sleep: Int32 = 10
         let start: Double = Date().timeIntervalSince1970
         TeaCore.sleep(sleep)
         let end: Double = Date().timeIntervalSince1970
         XCTAssertTrue(Int((end - start)) >= sleep)
     }
 
-    func testTeaCoreDoAction() {
+    func testTeaCoreDoAction() async {
         var res: TeaResponse?
         let expectation = XCTestExpectation(description: "Test async request")
-        let request: requestCompletion = { done in
-            let request_ = TeaRequest()
-            request_.protocol_ = "http"
-            request_.method = "POST"
-            request_.pathname = "/v2/drive/list"
+        let request_ = TeaRequest()
+        request_.protocol_ = "http"
+        request_.method = "POST"
+        request_.pathname = "/events"
+        request_.query = [
+            "cluster_id": "test"
+        ]
 
-            request_.headers = [
-                "user-agent": "Tea Test for TeaCore.doAction",
-                "host": "sz16.api.alicloudccp.com",
-                "content-type": "application/json; charset=utf-8"
-            ]
-            let utils: TestsUtils = TestsUtils()
-            request_.headers["date"] = utils._getRFC2616Date()
-            request_.headers["accept"] = "application/json"
-            request_.headers["x-acs-signature-method"] = "HMAC-SHA1"
-            request_.headers["x-acs-signature-version"] = "1.0"
-            request_.headers["authorization"] = "acs AccessKeyId:TestSignature"
+        request_.headers = [
+            "user-agent": "Swift Test for TeaCore.doAction",
+            "host": "cs.cn-hangzhou.aliyuncs.com",
+            "content-type": "application/json; charset=utf-8"
+        ]
+        let utils: TestsUtils = TestsUtils()
+        request_.headers["date"] = utils._getRFC2616Date()
+        request_.headers["accept"] = "application/json"
+        request_.headers["x-acs-signature-method"] = "HMAC-SHA1"
+        request_.headers["x-acs-signature-version"] = "1.0"
+        request_.headers["authorization"] = "acs AccessKeyId:TestSignature"
 
-            let model = ListDriveRequestModel()
-            model.owner = "owner"
-            request_.body = utils._toJSONString([model])
+        let model = ListDriveRequestModel()
+        model.owner = "owner"
+        request_.body = TeaCore.toReadable(utils._toJSONString([model]))
 
-            var runtime = [String: Any]()
-            runtime["connectTimeout"] = 0
-            runtime["readTimeout"] = 0
-            res = TeaCore.doAction(request_, runtime)
-            done(res)
-        }
-        let done: doneCompletion = { response in
-            // do something when get response
-            res = response as? TeaResponse
+        var runtime = [String: Any]()
+        runtime["connectTimeout"] = 0
+        runtime["readTimeout"] = 0
+        do {
+            res = try await TeaCore.doAction(request_, runtime)
             XCTAssertNotNil(res)
-            XCTAssertNil(res?.error)
-            XCTAssertEqual("403", res?.statusCode ?? "0")
-            XCTAssertEqual("{\"code\":\"InvalidParameter.Accesskeyid\",\"message\":\"The input parameter AccessKeyId is not valid. DoesNotExist\"}", String(bytes: res!.data, encoding: .utf8))
-            expectation.fulfill()
+        } catch {
+            XCTFail("Unexpected error: \(error).")
         }
-
-        TeaClient.async(request: request, done: done)
+        
+        
+        XCTAssertEqual(404, res?.statusCode ?? 0)
+        XCTAssertEqual("POST", res!.request?.method?.rawValue)
+        XCTAssertEqual("http://cs.cn-hangzhou.aliyuncs.com/events?cluster_id=test", res!.request?.debugDescription)
+        let responseBody = String(data: res!.body!, encoding: .utf8)!.jsonDecode()
+        XCTAssertEqual("InvalidAction.NotFound", responseBody["Code"] as! String)
+        XCTAssertEqual("Specified api is not found, please check your url and method.", responseBody["Message"] as! String)
+        XCTAssertEqual("https://next.api.aliyun.com/troubleshoot?q=InvalidAction.NotFound&product=CS", responseBody["Recommend"] as! String)
+        XCTAssertEqual("cs.cn-hangzhou.aliyuncs.com", responseBody["HostId"] as! String)
+        expectation.fulfill()
 
         wait(for: [expectation], timeout: 100.0)
     }
@@ -145,10 +205,24 @@ final class TeaTests: XCTestCase {
         var result: Bool = TeaCore.allowRetry(nil, 3, 0)
         XCTAssertFalse(result)
 
-        var dict: [String: Int] = [String: Int]()
+        var dict: [String: Any] = [:]
         dict["maxAttempts"] = 5
+        result = TeaCore.allowRetry(dict, 1, 0)
+        XCTAssertFalse(result)
+        
+        dict["retryable"] = false
+        result = TeaCore.allowRetry(dict, 1, 0)
+        XCTAssertFalse(result)
+        
         result = TeaCore.allowRetry(dict, 0, 0)
         XCTAssertTrue(result)
+        
+        dict["retryable"] = true
+        result = TeaCore.allowRetry(dict, 1, 0)
+        XCTAssertTrue(result)
+        
+        result = TeaCore.allowRetry(dict, 6, 0)
+        XCTAssertFalse(result)
     }
 
     func testTeaCoreGetBackoffTime() {
@@ -168,7 +242,8 @@ final class TeaTests: XCTestCase {
     }
 
     func testTeaCoreIsRetryable() {
-        XCTAssertTrue(TeaCore.isRetryable(TeaException.ValidateError("foo")))
+        XCTAssertFalse(TeaCore.isRetryable(ValidateError("foo")))
+        XCTAssertTrue(TeaCore.isRetryable(RetryableError(AFError.explicitlyCancelled)))
     }
 
     func testTeaConverterMerge() {
@@ -177,17 +252,31 @@ final class TeaTests: XCTestCase {
 
         dict1["foo"] = "bar"
         dict2["bar"] = "foo"
+        
+        var model: ListDriveResponse = ListDriveResponse()
 
-        let dict: [String: String] = TeaConverter.merge(dict1, dict2) as! [String: String]
+        var dict: [String: String] = TeaConverter.merge([:], dict1, dict2, model.items)
         XCTAssertEqual(dict["foo"], "bar")
         XCTAssertEqual(dict["bar"], "foo")
+        XCTAssertEqual(dict.count, 2)
+        model.items = [
+            "a": "b",
+            "foo": "foo",
+        ]
+        dict = TeaConverter.merge(dict1, dict2, model.items, [
+            "a": "b",
+            "foo": "foo",
+        ])
+        XCTAssertEqual(dict["a"], "b")
+        XCTAssertEqual(dict["foo"], "foo")
+        XCTAssertEqual(dict.count, 3)
     }
 
     static var allTests = [
         ("testTeaCoreComposeUrl", testTeaCoreComposeUrl),
         ("testTeaModelToMap", testTeaModelToMap),
         ("testTeaModelValidate", testTeaModelValidate),
-        ("testTeaModelToModel", testTeaModelToModel),
+        ("testTeaModelFromMap", testTeaModelFromMap),
         ("testTeaCoreSleep", testTeaCoreSleep),
         ("testTeaCoreDoAction", testTeaCoreDoAction),
         ("testTeaCoreAllowRetry", testTeaCoreAllowRetry),
