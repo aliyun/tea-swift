@@ -1,34 +1,145 @@
-//
-// Created by Axios on 2020/1/14.
-//
-
 import Foundation
 import Tea
 
-open class ListDriveResponse: TeaModel {
-    @objc public var requestId: String = ""
+public class ListDriveResponse: TeaModel {
+    public var requestId: String?
 
-    @objc public var items: [String: Any] = [String: NSObject]()
+    public var items: [String: String]?
+    
+    public var list: [Any]?
 
-    @objc public var nextMarker: String = ""
-
+    public var nextMarker: Int?
+    
+    public var model: Complex?
+    
+    public class Complex : TeaModel {
+        public var name: String?
+        public var code: NSNumber?
+        
+        public override func validate() throws -> Void {
+            try self.validateRequired(self.code, "code")
+        }
+        
+        public override func toMap() -> [String : Any] {
+            var map = super.toMap()
+            if self.name != nil {
+                map["name"] = self.name
+            }
+            if self.code != nil {
+                map["code"] = self.code
+            }
+            return map
+        }
+        
+        public override func fromMap(_ dict: [String: Any]) -> Void {
+            if dict.keys.contains("name") {
+                self.name = dict["name"] as! String
+            }
+            if dict.keys.contains("code") {
+                self.code = dict["code"] as! NSNumber
+            }
+        }
+    }
+    
     public override init() {
         super.init()
-        self.__name["requestId"] = "requestId"
-        self.__name["items"] = "items"
-        self.__name["nextMarker"] = "next_marker"
+    }
+
+    public init(_ dict: [String: Any]) {
+        super.init()
+        self.fromMap(dict)
+    }
+    
+    public override func validate() throws -> Void {
+        try self.model?.validate()
+    }
+    
+    public override func toMap() -> [String : Any] {
+        var map = super.toMap()
+        if self.requestId != nil {
+            map["requestId"] = self.requestId
+        }
+        if self.requestId != nil {
+            map["requestId"] = self.requestId
+        }
+        if self.items != nil {
+            map["items"] = self.items
+        }
+        if self.list != nil {
+            map["list"] = self.list
+        }
+        if self.requestId != nil {
+            map["nextMarker"] = self.nextMarker
+        }
+        if self.model != nil {
+            map["model"] = self.model?.toMap()
+        }
+        return map
+    }
+    
+    public override func fromMap(_ dict: [String: Any]) -> Void {
+        if dict.keys.contains("requestId") {
+            self.requestId = dict["requestId"] as! String
+        }
+        if dict.keys.contains("items") {
+            self.items = dict["items"] as! [String: String]
+        }
+        if dict.keys.contains("list") {
+            self.list = dict["list"] as! [Any]
+        }
+        if dict.keys.contains("nextMarker") {
+            self.nextMarker = dict["nextMarker"] as! Int
+        }
+        if dict.keys.contains("model") {
+            var model = Complex()
+            model.fromMap(dict["model"] as! [String: Any])
+            self.model = model
+        }
     }
 }
 
-
-open class ListDriveRequestModel: TeaModel {
-    @objc public var limit: Int = 0
-    @objc public var marker: String = ""
-    @objc public var owner: String = ""
-
+public class ListDriveRequestModel: TeaModel {
+    public var limit: Int?
+    public var marker: String?
+    public var owner: String?
+    
     public override init() {
         super.init()
-        self.__required["owner"] = true
+    }
+
+    public init(_ dict: [String: Any]) {
+        super.init()
+        self.fromMap(dict)
+    }
+    
+    public override func validate() throws -> Void {
+        try self.validateRequired(self.owner, "owner")
+    }
+    
+    public override func toMap() -> [String : Any] {
+        var map = super.toMap()
+        if self.limit != nil {
+            map["limit"] = self.limit
+        }
+        if self.marker != nil {
+            map["marker"] = self.marker
+        }
+        if self.owner != nil {
+            map["owner"] = self.owner
+        }
+        return map
+    }
+    
+    public override func fromMap(_ dict: [String: Any]) -> Void {
+        if dict.keys.contains("limit") {
+            self.limit = dict["limit"] as! Int
+        }
+        if dict.keys.contains("marker") {
+            self.marker = dict["marker"] as! String
+        }
+        if dict.keys.contains("owner") {
+            self.owner = dict["owner"] as! String
+        }
     }
 }
 

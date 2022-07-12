@@ -1,19 +1,94 @@
 import Alamofire
 import Foundation
 import Swift
-import AlamofirePromiseKit
-import AwaitKit
 
-public enum TeaException: Error {
-    case Error(Any?)
-    case Unretryable(TeaRequest?)
-    case ValidateError(String?)
+#if swift(<5.5)
+#error("Tea doesn't support Swift versions below 5.5.")
+#endif
+
+open class TeaError: Error {
+    public var message: String?
+    
+    public init() {
+    }
+    
+    public init(_ msg: String?) {
+        message = msg
+    }
+
+    public func getMessage() -> String? {
+        return message
+    }
 }
 
-open class TeaCore: NSObject {
+open class ValidateError: TeaError {
+    public var data: Any?
+    
+    public init(_ any: Any?) {
+        super.init()
+        data = any
+    }
+
+    public override init(_ msg: String?) {
+        super.init(msg)
+    }
+}
+
+open class ReuqestError: TeaError {
+    public var code: String?
+    public var statusCode: Int?
+    public var data: [String: Any]?
+    
+    public init(_ map: [String: Any]?) {
+        super.init()
+        message = map?["message"] as? String
+        code = map?["code"] as? String
+        if map?["data"] != nil {
+            data = map?["data"] as? [String: Any]
+            if data?["statusCode"] != nil {
+                statusCode = data?["statusCode"] as? Int
+            }
+        }
+    }
+    
+    public func getCode() -> String? {
+        return code
+    }
+
+    public func getStatusCode() -> Int? {
+        return statusCode
+    }
+    
+}
+
+open class RetryableError: TeaError {
+    public var couse: Error?
+    
+    public init(_ err: Error?) {
+        super.init(err?.localizedDescription)
+        couse = err
+    }
+    
+}
+
+open class UnretryableError: TeaError {
+    public var request: TeaRequest?
+    public var couse: Error?
+    
+    public init(_ req: TeaRequest?, _ err: Error?) {
+        super.init(err?.localizedDescription)
+        request = req
+        couse = err
+    }
+    
+}
+
+open class TeaCore {
     private static let bufferLength: Int = 1024
-    private static let bodyMethod: [String] = ["POST", "PUT", "PATCH"]
-    private static let defaultTimeout: Int = 10000
+    private static let defaultConnectTimeout: Int = 5 * 1000
+    private static let defaultReadTimeout: Int = 10 * 1000
+    private static let defaultMaxIdleConnsPerHost : Int = 128
+    
 
     public static func composeUrl(_ request: TeaRequest) -> String {
         var url: String = ""
@@ -39,49 +114,71 @@ open class TeaCore: NSObject {
         return url
     }
 
-    public static func sleep(_ time: Int) {
-        Darwin.sleep(UInt32(time))
-    }
-
-    public static func doAction(_ request: TeaRequest, _ config: URLSessionConfiguration = URLSessionConfiguration.default) -> TeaResponse {
-        let promise = Alamofire.request(
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public static func doAction(_ request: TeaRequest, _ config: URLSessionConfiguration = URLSessionConfiguration.default) async throws -> TeaResponse {
+        if request.body != nil {
+            let task = AF.upload(
+                request.body!,
+                to: TeaCore.composeUrl(request),
+                method: HTTPMethod(rawValue: request.method),
+                headers: HTTPHeaders(request.headers))
+                .serializingData()
+            let response = await task.response
+            return try TeaResponse(response)
+        } else {
+            let task = AF.request(
                 TeaCore.composeUrl(request),
-                method: HTTPMethod(rawValue: request.method) ?? HTTPMethod.get,
-                parameters: request.query,
-                encoding: URLEncoding.default,
-                headers: request.headers
-        ).response();
-        let res: DefaultDataResponse = try! await(promise)
-        return TeaResponse(res)
+                method: HTTPMethod(rawValue: request.method),
+                headers: HTTPHeaders(request.headers))
+                .serializingData()
+            let response = await task.response
+            return try TeaResponse(response)
+        }
     }
 
-    public static func doAction(_ request: TeaRequest, _ runtime: [String: Any]) -> TeaResponse {
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public static func doAction(_ request: TeaRequest, _ runtime: [String: Any]) async throws -> TeaResponse {
         let config: URLSessionConfiguration = URLSessionConfiguration.default
-        var connectTimeout: Int = runtime["connectTimeout"] as! Int
-        var readTimeout: Int = runtime["readTimeout"] as! Int
+        var connectTimeout: Int? = runtime["connectTimeout"] as? Int
         if connectTimeout == 0 {
-            connectTimeout = defaultTimeout
+            connectTimeout = defaultConnectTimeout
         }
+        var readTimeout: Int? = runtime["readTimeout"] as? Int
         if readTimeout == 0 {
-            readTimeout = defaultTimeout
+            readTimeout = defaultReadTimeout
         }
-        config.timeoutIntervalForRequest = TimeInterval(connectTimeout)
-        config.timeoutIntervalForResource = TimeInterval(readTimeout)
-        return TeaCore.doAction(request, config)
+        var maxIdleConns: Int? = runtime["maxIdleConns"] as? Int
+        if maxIdleConns == 0 {
+            maxIdleConns = defaultMaxIdleConnsPerHost
+        }
+        config.timeoutIntervalForRequest = TimeInterval(connectTimeout ?? defaultConnectTimeout)
+        config.timeoutIntervalForResource = TimeInterval(readTimeout ?? defaultReadTimeout)
+        config.httpMaximumConnectionsPerHost = maxIdleConns ?? defaultMaxIdleConnsPerHost
+        return try await TeaCore.doAction(request, config)
+    }
+    
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public static func doAction(_ request: TeaRequest) async throws -> TeaResponse {
+        let runtime: [String: Any] = [:]
+        return try await TeaCore.doAction(request, runtime)
     }
 
-    public static func allowRetry(_ dict: Any?, _ retryTimes: Int, _ now: Int32) -> Bool {
+    public static func allowRetry(_ dict: Any?, _ retryTimes: Int32, _ now: Int32) -> Bool {
+        if(retryTimes < 1){
+            return true
+        }
         let dic = dict as? [String: Any]
+        let retryable = dic?["retryable"]
         let isNotExists = dic?["maxAttempts"] == nil
-        if dict == nil || isNotExists {
+        if dict == nil || retryable == nil  || !(retryable as! Bool) || isNotExists {
             return false
         }
         let maxAttempts: Int = dic?["maxAttempts"] as! Int
         return maxAttempts >= retryTimes
     }
 
-    public static func getBackoffTime(_ dict: Any?, _ retryTimes: Int) -> Int {
-        var backOffTime: Int = 0
+    public static func getBackoffTime(_ dict: Any?, _ retryTimes: Int32) -> Int32 {
+        var backOffTime: Int32 = 0
         let dic = dict as? [String: Any]
         let policy: String = dic?["policy"] as! String
         if policy == "" || policy.isEmpty || policy == "no" {
@@ -90,7 +187,7 @@ open class TeaCore: NSObject {
 
         let period: String = dic?["period"] as! String
         if period != "" {
-            backOffTime = Int(period)!
+            backOffTime = Int32(period)!
             if backOffTime <= 0 {
                 return retryTimes
             }
@@ -100,60 +197,108 @@ open class TeaCore: NSObject {
     }
 
     public static func isRetryable(_ e: Error) -> Bool {
-        return e is TeaException
+        return e is RetryableError
+    }
+    
+    public static func timeNow() -> Int32 {
+        return Int32(Date().timeIntervalSince1970)
+    }
+    
+    public static func sleep(_ time: Int32) -> Void {
+        Thread.sleep(forTimeInterval: Double(time))
+    }
+    
+    public static func toReadable(_ string: String) -> InputStream {
+        return toReadable(string.toBytes())
+    }
+    
+    public static func toReadable(_ bytes: [UInt8]) -> InputStream {
+        let data = Data.init(bytes: bytes, count: bytes.count)
+        return InputStream.init(data: data)
     }
 }
 
-open class TeaConverter: NSObject {
-    public static func merge(_ dict: [String: Any]...) -> [String: Any] {
-        var mergeDict: [String: Any] = [String: Any]()
+open class TeaConverter {
+    public static func merge<T: Any>(_ dict: [String: T]?...) -> [String: T] {
+        var mergeDict: [String: T] = [:]
         for dic in dict {
-            for (k, v) in dic {
-                mergeDict[k] = v
+            if (dic != nil) {
+                for (k, v) in dic! {
+                    mergeDict[k] = v
+                }
             }
         }
         return mergeDict
     }
-}
-
-open class TeaModel: NSObject {
-    public var __name: [String: String] = [String: String]()
-
-    public var __required: [String: Bool] = [String: Bool]()
-
-    public func toMap() -> [String: Any] {
-        var dict: [String: Any] = [String: Any]()
-        let mirror = Mirror(reflecting: self)
-        for (label, value) in mirror.children {
-            dict[label!] = value
-        }
-        return dict
-    }
-
-    public func validate() throws -> Bool {
-        let mirror = Mirror(reflecting: self)
-        let required = __required
-        for (label, value) in mirror.children {
-            if required[label!] == true {
-                if value is String {
-                    if (value as! String).isEmpty {
-                        throw TeaException.ValidateError(label)
-                    }
-                }
-            }
-        }
-        return true
-    }
-
-    public static func toModel(_ dict: [String: Any], _ obj: NSObject) -> Any? {
-        for (key, value) in dict {
-            obj.setValue(value, forKey: key)
-        }
-        return obj
+    
+    public static func fromMap<T: TeaModel>(_ model: T, _ dict: [String: Any]) -> T {
+        model.fromMap(dict)
+        return model
     }
 }
 
-open class TeaRequest: NSObject {
+open class TeaModel {
+    
+    public init() { }
+
+    open func toMap() -> [String: Any] {
+        return [:]
+    }
+
+    open func fromMap(_ dict: [String: Any]) -> Void { }
+    
+    open func validate() throws -> Void { }
+    
+    public func validateRequired(_ prop: Any?, _ name: String) throws -> Void {
+        if prop == nil {
+            throw ValidateError("\(name) is required")
+        }
+    }
+    
+    public func validateMaxLength(_ prop: Any?, _ name: String, _ maxLen: Int) throws -> Void {
+        if prop is String && (prop as! String).count > maxLen{
+            throw ValidateError("\(name) is exceed max-length: \(maxLen)")
+        }
+        if prop is Dictionary<String, Any> && (prop as! Dictionary<String, Any>).count > maxLen{
+            throw ValidateError("\(name) is exceed max-length: \(maxLen)")
+        }
+        if prop is Array<Any> && (prop as! Array<Any>).count > maxLen{
+            throw ValidateError("\(name) is exceed max-length: \(maxLen)")
+        }
+    }
+    
+    public func validateMinLength(_ prop: Any?, _ name: String, _ minLen: Int) throws -> Void {
+        if prop is String && (prop as! String).count < minLen{
+            throw ValidateError("\(name) is less than min-length: \(minLen)")
+        }
+        if prop is Dictionary<String, Any> && (prop as! Dictionary<String, Any>).count < minLen{
+            throw ValidateError("\(name) is less than min-length: \(minLen)")
+        }
+        if prop is Array<Any> && (prop as! Array<Any>).count < minLen{
+            throw ValidateError("\(name) is less than min-length: \(minLen)")
+        }
+    }
+    
+    public func validateMaximum(_ prop: NSNumber?, _ name: String, _ maximum: NSNumber) throws -> Void {
+        if prop?.isGreaterThan(maximum) == true {
+            throw ValidateError("\(name) is greater than the maximum: \(maximum)")
+        }
+    }
+    
+    public func validateMinimum(_ prop: NSNumber?, _ name: String, _ minimum: NSNumber) throws -> Void {
+        if prop?.isLessThan(minimum) == true {
+            throw ValidateError("\(name) is less than the minimum: \(minimum)")
+        }
+    }
+    
+    public func validatePattern(_ prop: String?, _ name: String, _ pattern: String) throws -> Void {
+        if prop?.range(of: pattern, options: .regularExpression) != nil {
+            throw ValidateError("\(name) is not match: \(pattern)")
+        }
+    }
+}
+
+open class TeaRequest {
     public var requestType: String = "default"
 
     public var protocol_: String = "http"
@@ -164,55 +309,43 @@ open class TeaRequest: NSObject {
 
     public var headers: [String: String] = [String: String]()
 
-    public var query: [String: Any] = [String: Any]()
+    public var query: [String: String] = [String: String]()
 
-    public var body: String = ""
+    public var body: InputStream?
 
     public var port: Int = 80
-
-    public var host: String = ""
-
-    public override init() {
-    }
+    
+    public init() { }
 }
 
-open class TeaResponse: CustomDebugStringConvertible {
+open class TeaResponse {
     public var headers: [String: String] = [String: String]()
-
+    
     /// The status code of the response.
-    public let statusCode: String
+    public let statusCode: Int32
 
-    // The status message of the response
+    /// The status message of the response
     public let statusMessage: String
 
     /// The response data.
-    public let data: Data
-
+    public let body: Data?
+    
     /// The original URLRequest for the response.
     public let request: URLRequest?
 
     /// The HTTPURLResponse object.
     public let response: HTTPURLResponse?
 
-    public let error: Error?
-
-    public init(_ res: DefaultDataResponse?) {
-        statusCode = "\(res?.response?.statusCode ?? 0)"
-        data = (res?.data)!
+    public init(_ res: DataResponse<Data, AFError>?) throws {
+        statusCode = Int32(res?.response?.statusCode ?? 0)
+        body = res?.data
         request = res?.request
         response = res?.response
-        error = res?.error
+        headers = (response?.headers.dictionary)!
         statusMessage = res.debugDescription
-    }
-
-    /// A text description of the `Response`.
-    public var description: String {
-        return "Status Code: \(statusCode), Data Length: \(data.count)"
-    }
-
-    /// A text description of the `Response`. Suitable for debugging.
-    public var debugDescription: String {
-        return description
+        if res?.error != nil {
+            throw RetryableError(res?.error)
+        }
     }
 }
 
@@ -222,16 +355,16 @@ func httpQueryString(_ query: [String: Any]) -> String {
         let keys = Array(query.keys).sorted()
         var arr: [String] = [String]()
         for key in keys {
-            let value: String = "\(query[key] ?? "")"
-            if value.isEmpty {
+            let value = query[key]
+            if value == nil {
                 continue
             }
-            arr.append(key + "=" + "\(value)".urlEncode())
+            arr.append(key.urlEncode() + "=" + "\(value ?? "")".urlEncode())
         }
-        arr = arr.sorted()
         if arr.count > 0 {
             url = arr.joined(separator: "&")
         }
     }
     return url
 }
+
