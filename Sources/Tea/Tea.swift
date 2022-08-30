@@ -256,6 +256,9 @@ open class TeaModel {
     }
     
     public func validateMaxLength(_ prop: Any?, _ name: String, _ maxLen: Int) throws -> Void {
+        if prop == nil {
+            return
+        }
         if prop is String && (prop as! String).count > maxLen{
             throw ValidateError("\(name) is exceed max-length: \(maxLen)")
         }
@@ -268,6 +271,9 @@ open class TeaModel {
     }
     
     public func validateMinLength(_ prop: Any?, _ name: String, _ minLen: Int) throws -> Void {
+        if prop == nil {
+            return
+        }
         if prop is String && (prop as! String).count < minLen{
             throw ValidateError("\(name) is less than min-length: \(minLen)")
         }
@@ -279,14 +285,38 @@ open class TeaModel {
         }
     }
     
-    public func validateMaximum(_ prop: NSNumber?, _ name: String, _ maximum: NSNumber) throws -> Void {
-        if prop?.isGreaterThan(maximum) == true {
+    public func validateMaximum(_ prop: Int?, _ name: String, _ maximum: Int) throws -> Void {
+        if prop == nil {
+            return
+        }
+        if prop! > maximum {
             throw ValidateError("\(name) is greater than the maximum: \(maximum)")
         }
     }
     
-    public func validateMinimum(_ prop: NSNumber?, _ name: String, _ minimum: NSNumber) throws -> Void {
-        if prop?.isLessThan(minimum) == true {
+    public func validateMinimum(_ prop: Int?, _ name: String, _ minimum: Int) throws -> Void {
+        if prop == nil {
+            return
+        }
+        if prop! < minimum {
+            throw ValidateError("\(name) is less than the minimum: \(minimum)")
+        }
+    }
+    
+    public func validateMaximum(_ prop: Int32?, _ name: String, _ maximum: Int) throws -> Void {
+        if prop == nil {
+            return
+        }
+        if prop! > maximum {
+            throw ValidateError("\(name) is greater than the maximum: \(maximum)")
+        }
+    }
+    
+    public func validateMinimum(_ prop: Int32?, _ name: String, _ minimum: Int) throws -> Void {
+        if prop == nil {
+            return
+        }
+        if prop! < minimum {
             throw ValidateError("\(name) is less than the minimum: \(minimum)")
         }
     }
