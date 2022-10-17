@@ -271,6 +271,38 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(dict["foo"], "foo")
         XCTAssertEqual(dict.count, 3)
     }
+    
+    func testTeaError() {
+        var dict: [String: Any] = [
+            "code": "code",
+            "message": "message",
+        ]
+        var err: ReuqestError = ReuqestError(dict)
+        XCTAssertEqual("code", err.code)
+        XCTAssertEqual("message", err.message)
+        XCTAssertNil(err.statusCode)
+        XCTAssertNil(err.description)
+        
+        dict = [
+            "code": "code",
+            "message": "message",
+            "data": [
+                "statusCode": 400,
+                "description": "description",
+            ],
+            "description": "error description",
+            "accessDeniedDetail": [
+                "AuthAction": "ram:ListUsers",
+                "NoPermissionType": "ImplicitDeny",
+            ]
+        ]
+        err = ReuqestError(dict)
+        XCTAssertEqual("code", err.code)
+        XCTAssertEqual("message", err.message)
+        XCTAssertEqual(400, err.statusCode)
+        XCTAssertEqual("error description", err.description)
+        XCTAssertEqual("ImplicitDeny", err.accessDeniedDetail!["NoPermissionType"] as! String)
+    }
 
     static var allTests = [
         ("testTeaCoreComposeUrl", testTeaCoreComposeUrl),
