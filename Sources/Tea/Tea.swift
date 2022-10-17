@@ -38,11 +38,15 @@ open class ReuqestError: TeaError {
     public var code: String?
     public var statusCode: Int?
     public var data: [String: Any]?
+    public var description: String?
+    public var accessDeniedDetail: [String: Any]?
     
     public init(_ map: [String: Any]?) {
         super.init()
         message = map?["message"] as? String
         code = map?["code"] as? String
+        description = map?["description"] as? String
+        accessDeniedDetail = map?["accessDeniedDetail"] as? [String: Any]
         if map?["data"] != nil {
             data = map?["data"] as? [String: Any]
             if data?["statusCode"] != nil {
