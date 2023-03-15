@@ -1,3 +1,6 @@
+### 2023-03-15 Version 1.0.2
+* Fix: response parse failure when occurs http error.
+
 ### 2022-10-17 Version 1.0.1
 * Return `description` and `accessDeniedDetail` in `ReuqestError`.
 
