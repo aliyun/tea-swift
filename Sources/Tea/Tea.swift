@@ -371,15 +371,15 @@ open class TeaResponse {
     public let response: HTTPURLResponse?
 
     public init(_ res: DataResponse<Data, AFError>?) throws {
+        if res?.error != nil {
+            throw RetryableError(res?.error)
+        }
         statusCode = Int32(res?.response?.statusCode ?? 0)
         body = res?.data
         request = res?.request
         response = res?.response
-        headers = (response?.headers.dictionary)!
-        statusMessage = res.debugDescription
-        if res?.error != nil {
-            throw RetryableError(res?.error)
-        }
+        headers = response?.headers.dictionary ?? [:]
+        statusMessage = res?.debugDescription ?? ""
     }
 }
 
