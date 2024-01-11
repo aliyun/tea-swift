@@ -194,7 +194,8 @@ final class TeaTests: XCTestCase {
         let responseBody = String(data: res!.body!, encoding: .utf8)!.jsonDecode()
         XCTAssertEqual("InvalidAction.NotFound", responseBody["Code"] as! String)
         XCTAssertEqual("Specified api is not found, please check your url and method.", responseBody["Message"] as! String)
-        XCTAssertEqual("https://next.api.aliyun.com/troubleshoot?q=InvalidAction.NotFound&product=CS", responseBody["Recommend"] as! String)
+        let recommand = responseBody["Recommend"] as! String
+        XCTAssertTrue(recommand.starts(with: "https://api.aliyun.com/troubleshoot?q=InvalidAction.NotFound&product=CS&requestId="))
         XCTAssertEqual("cs.cn-hangzhou.aliyuncs.com", responseBody["HostId"] as! String)
         expectation.fulfill()
 
