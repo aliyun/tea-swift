@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        swift-version: ["5.9.0"]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Swift ${{ matrix.swift-version }}
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ matrix.swift-version }}
+
+    - name: Test
+      run: swift test --enable-code-coverage
+
+    - uses: codecov/codecov-action@v3

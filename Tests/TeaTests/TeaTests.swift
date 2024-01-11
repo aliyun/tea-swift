@@ -152,7 +152,6 @@ final class TeaTests: XCTestCase {
 
     func testTeaCoreDoAction() async {
         var res: TeaResponse?
-        let expectation = XCTestExpectation(description: "Test async request")
         let request_ = TeaRequest()
         request_.protocol_ = "http"
         request_.method = "POST"
@@ -180,14 +179,8 @@ final class TeaTests: XCTestCase {
         var runtime = [String: Any]()
         runtime["connectTimeout"] = 0
         runtime["readTimeout"] = 0
-        do {
-            res = try await TeaCore.doAction(request_, runtime)
-            XCTAssertNotNil(res)
-        } catch {
-            XCTFail("Unexpected error: \(error).")
-        }
-        
-        
+        res = try! await TeaCore.doAction(request_, runtime)
+        XCTAssertNotNil(res)
         XCTAssertEqual(404, res?.statusCode ?? 0)
         XCTAssertEqual("POST", res!.request?.method?.rawValue)
         XCTAssertEqual("http://cs.cn-hangzhou.aliyuncs.com/events?cluster_id=test", res!.request?.debugDescription)
@@ -197,9 +190,6 @@ final class TeaTests: XCTestCase {
         let recommand = responseBody["Recommend"] as! String
         XCTAssertTrue(recommand.starts(with: "https://api.aliyun.com/troubleshoot?q=InvalidAction.NotFound&product=CS&requestId="))
         XCTAssertEqual("cs.cn-hangzhou.aliyuncs.com", responseBody["HostId"] as! String)
-        expectation.fulfill()
-
-        wait(for: [expectation], timeout: 100.0)
     }
 
     func testTeaCoreAllowRetry() {
@@ -254,7 +244,7 @@ final class TeaTests: XCTestCase {
         dict1["foo"] = "bar"
         dict2["bar"] = "foo"
         
-        var model: ListDriveResponse = ListDriveResponse()
+        let model: ListDriveResponse = ListDriveResponse()
 
         var dict: [String: String] = TeaConverter.merge([:], dict1, dict2, model.items)
         XCTAssertEqual(dict["foo"], "bar")
