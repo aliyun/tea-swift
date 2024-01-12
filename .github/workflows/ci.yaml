@@ -27,5 +27,5 @@ jobs:
 
     - name: Test
       run: swift test --enable-code-coverage
-
+    - run: xcrun llvm-cov export -format="lcov" .build/debug/TeaPackageTests.xctest/Contents/MacOS/TeaPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
     - uses: codecov/codecov-action@v3
