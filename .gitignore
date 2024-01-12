@@ -96,3 +96,5 @@ iOSInjectionProject/
 *.txt
 .idea/
 .vscode/
+
+info.lcov

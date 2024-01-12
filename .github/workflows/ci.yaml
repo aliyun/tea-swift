@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: macos-12
+    strategy:
+      matrix:
+        swift-version: ["5.9.0"]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Swift ${{ matrix.swift-version }}
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ matrix.swift-version }}
+    - name: Build
+      run: swift build
+    - name: Test
+      run: swift test --enable-code-coverage
+    - run: xcrun llvm-cov export -format="lcov" .build/debug/TeaPackageTests.xctest/Contents/MacOS/TeaPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
+    - uses: codecov/codecov-action@v3
