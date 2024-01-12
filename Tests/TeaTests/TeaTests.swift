@@ -78,7 +78,7 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual("test", (dict["model"] as! [String: Any])["name"] as! String)
         XCTAssertEqual(2, (dict["model"] as! [String: Any])["code"] as! NSNumber)
     }
-    
+
     func testTeaModelFromMap() {
         var dict: [String: Any] = [String: Any]()
         dict["limit"] = 1

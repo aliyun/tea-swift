@@ -24,7 +24,8 @@ jobs:
       uses: swift-actions/setup-swift@v1
       with:
         swift-version: ${{ matrix.swift-version }}
-
+    - name: Build
+      run: swift build
     - name: Test
       run: swift test --enable-code-coverage
     - run: xcrun llvm-cov export -format="lcov" .build/debug/TeaPackageTests.xctest/Contents/MacOS/TeaPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
