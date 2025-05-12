@@ -249,7 +249,7 @@ open class TeaModel {
         return [:]
     }
 
-    open func fromMap(_ dict: [String: Any]) -> Void { }
+    open func fromMap(_ dict: [String: Any?]?) -> Void { }
     
     open func validate() throws -> Void { }
     
