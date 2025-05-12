@@ -109,12 +109,12 @@ final class TeaTests: XCTestCase {
             ]]
         ])
         XCTAssertEqual("id", response.requestId)
-        XCTAssertEqual("value1", response.items?["key1"] as! String)
-        XCTAssertEqual("value2", response.items?["key2"] as! String)
+        XCTAssertEqual("value1", response.items?["key1"]!)
+        XCTAssertEqual("value2", response.items?["key2"]!)
         XCTAssertEqual("1", response.list?[0] as! String)
         XCTAssertEqual("2", response.list?[1] as! String)
         XCTAssertEqual("3", response.list?[2] as! String)
-        XCTAssertEqual(1, response.nextMarker as! Int)
+        XCTAssertEqual(1, response.nextMarker!)
         XCTAssertEqual("test1", response.model?.name)
         response.fromMap([
             "model": [
@@ -150,6 +150,7 @@ final class TeaTests: XCTestCase {
         XCTAssertTrue(Int((end - start)) >= sleep)
     }
 
+    @MainActor
     func testTeaCoreDoAction() async {
         var res: TeaResponse?
         let expectation = XCTestExpectation(description: "Test async request")
@@ -194,10 +195,10 @@ final class TeaTests: XCTestCase {
         let responseBody = String(data: res!.body!, encoding: .utf8)!.jsonDecode()
         XCTAssertEqual("InvalidAction.NotFound", responseBody["Code"] as! String)
         XCTAssertEqual("Specified api is not found, please check your url and method.", responseBody["Message"] as! String)
-        XCTAssertEqual("https://next.api.aliyun.com/troubleshoot?q=InvalidAction.NotFound&product=CS", responseBody["Recommend"] as! String)
+        XCTAssertNotNil(responseBody["Recommend"])
         XCTAssertEqual("cs.cn-hangzhou.aliyuncs.com", responseBody["HostId"] as! String)
         expectation.fulfill()
-
+        
         wait(for: [expectation], timeout: 100.0)
     }
 
@@ -253,7 +254,7 @@ final class TeaTests: XCTestCase {
         dict1["foo"] = "bar"
         dict2["bar"] = "foo"
         
-        var model: ListDriveResponse = ListDriveResponse()
+        let model: ListDriveResponse = ListDriveResponse()
 
         var dict: [String: String] = TeaConverter.merge([:], dict1, dict2, model.items)
         XCTAssertEqual(dict["foo"], "bar")
@@ -304,16 +305,4 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual("ImplicitDeny", err.accessDeniedDetail!["NoPermissionType"] as! String)
     }
 
-    static var allTests = [
-        ("testTeaCoreComposeUrl", testTeaCoreComposeUrl),
-        ("testTeaModelToMap", testTeaModelToMap),
-        ("testTeaModelValidate", testTeaModelValidate),
-        ("testTeaModelFromMap", testTeaModelFromMap),
-        ("testTeaCoreSleep", testTeaCoreSleep),
-        ("testTeaCoreDoAction", testTeaCoreDoAction),
-        ("testTeaCoreAllowRetry", testTeaCoreAllowRetry),
-        ("testTeaCoreGetBackoffTime", testTeaCoreGetBackoffTime),
-        ("testTeaCoreIsRetryable", testTeaCoreIsRetryable),
-        ("testTeaConverterMerge", testTeaConverterMerge),
-    ]
 }

@@ -31,12 +31,13 @@ public class ListDriveResponse: TeaModel {
             return map
         }
         
-        public override func fromMap(_ dict: [String: Any]) -> Void {
-            if dict.keys.contains("name") {
-                self.name = dict["name"] as! String
+        public override func fromMap(_ dict: [String: Any?]?) -> Void {
+            guard let dict else { return }
+            if let value = dict["name"] as? String {
+                self.name = value
             }
-            if dict.keys.contains("code") {
-                self.code = dict["code"] as! NSNumber
+            if let value =  dict["code"] as? NSNumber {
+                self.code = value
             }
         }
     }
@@ -77,22 +78,23 @@ public class ListDriveResponse: TeaModel {
         return map
     }
     
-    public override func fromMap(_ dict: [String: Any]) -> Void {
-        if dict.keys.contains("requestId") {
-            self.requestId = dict["requestId"] as! String
+    public override func fromMap(_ dict: [String: Any?]?) -> Void {
+        guard let dict else { return }
+        if let value = dict["requestId"] as? String {
+            self.requestId = value
         }
-        if dict.keys.contains("items") {
-            self.items = dict["items"] as! [String: String]
+        if let value = dict["items"] as? [String: String] {
+            self.items = value
         }
-        if dict.keys.contains("list") {
-            self.list = dict["list"] as! [Any]
+        if let value = dict["list"] as? [Any] {
+            self.list = value
         }
-        if dict.keys.contains("nextMarker") {
-            self.nextMarker = dict["nextMarker"] as! Int
+        if let value = dict["nextMarker"] as? Int {
+            self.nextMarker = value
         }
-        if dict.keys.contains("model") {
-            var model = Complex()
-            model.fromMap(dict["model"] as! [String: Any])
+        if let value = dict["model"] as? [String: Any?] {
+            let model = Complex()
+            model.fromMap(value)
             self.model = model
         }
     }
@@ -130,15 +132,16 @@ public class ListDriveRequestModel: TeaModel {
         return map
     }
     
-    public override func fromMap(_ dict: [String: Any]) -> Void {
-        if dict.keys.contains("limit") {
-            self.limit = dict["limit"] as! Int
+    public override func fromMap(_ dict: [String: Any?]?) -> Void {
+        guard let dict else { return }
+        if let value = dict["limit"] as? Int {
+            self.limit = value
         }
-        if dict.keys.contains("marker") {
-            self.marker = dict["marker"] as! String
+        if let value = dict["marker"] as? String {
+            self.marker = value
         }
-        if dict.keys.contains("owner") {
-            self.owner = dict["owner"] as! String
+        if let value = dict["owner"] as? String {
+            self.owner = value
         }
     }
 }
