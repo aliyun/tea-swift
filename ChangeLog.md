@@ -1,3 +1,6 @@
+### 2025-05-15 Version 1.0.3
+* Support nullable value from map in TeaModel.
+
 ### 2023-03-15 Version 1.0.2
 * Fix: response parse failure when occurs http error.
 
