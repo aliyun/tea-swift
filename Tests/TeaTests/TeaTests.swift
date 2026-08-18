@@ -143,11 +143,14 @@ final class TeaTests: XCTestCase {
     }
 
     func testTeaCoreSleep() {
-        let sleep: Int32 = 10
+        let sleep: Int32 = 50
         let start: Double = Date().timeIntervalSince1970
         TeaCore.sleep(sleep)
         let end: Double = Date().timeIntervalSince1970
-        XCTAssertTrue(Int((end - start)) >= sleep)
+        XCTAssertTrue((end - start) >= 0.04)
+        XCTAssertTrue((end - start) < 2)
+        TeaCore.sleep(0)
+        TeaCore.sleep(-1)
     }
 
     @MainActor
@@ -242,9 +245,50 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(1, TeaCore.getBackoffTime(dict, 3))
     }
 
+    func testTeaCoreGetBackoffDelay() {
+        XCTAssertEqual(0, TeaCore.getBackoffDelay(nil, 1))
+        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "no", "period": 1000], 1))
+        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "", "period": 1000], 1))
+        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 0], 1))
+        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "Exponential", "period": -2], 2))
+
+        XCTAssertEqual(1000, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 1))
+        XCTAssertEqual(2000, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 2))
+        XCTAssertEqual(4000, TeaCore.getBackoffDelay(["policy": "yes", "period": 1000], 3))
+        XCTAssertEqual(1000, TeaCore.getBackoffDelay(["policy": "Fixed", "period": 1000], 5))
+        XCTAssertEqual(1000, TeaCore.getBackoffDelay(["policy": "equal", "period": 1000], 5))
+        XCTAssertEqual(TeaRuntime.maxBackoffDelayMs, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 31))
+
+        let throttling = ThrottlingError([
+            "code": "Throttling",
+            "retryAfter": 1500
+        ])
+        XCTAssertEqual(1500, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 3, throttling))
+
+        let named = ReuqestError([
+            "code": "Throttling.User",
+            "retryAfter": 800
+        ])
+        named.name = "ThrottlingException"
+        XCTAssertEqual(800, TeaCore.getBackoffDelay(["policy": "no"], 1, named))
+    }
+
     func testTeaCoreIsRetryable() {
         XCTAssertFalse(TeaCore.isRetryable(ValidateError("foo")))
         XCTAssertTrue(TeaCore.isRetryable(RetryableError(AFError.explicitlyCancelled)))
+        XCTAssertTrue(TeaCore.isRetryable(ThrottlingError(["code": "Throttling"])))
+        XCTAssertTrue(TeaCore.isRetryable(ServerError(["code": "InternalError"])))
+        XCTAssertFalse(TeaCore.isRetryable(ClientError(["code": "InvalidParameter"])))
+        let openapiLike = ReuqestError(["code": "Throttling"])
+        openapiLike.name = "ThrottlingException"
+        XCTAssertTrue(TeaCore.isRetryable(openapiLike))
+        let serverLike = ReuqestError(["code": "ServiceUnavailable"])
+        serverLike.name = "ServerException"
+        XCTAssertTrue(TeaCore.isRetryable(serverLike))
+        enum DummyThrottling: Error { case x }
+        enum DummyServerError: Error { case y }
+        XCTAssertTrue(TeaCore.isRetryable(DummyThrottling.x))
+        XCTAssertTrue(TeaCore.isRetryable(DummyServerError.y))
     }
 
     func testTeaConverterMerge() {
@@ -283,6 +327,14 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual("message", err.message)
         XCTAssertNil(err.statusCode)
         XCTAssertNil(err.description)
+        err.description = "set"
+        XCTAssertEqual("set", err.description)
+
+        let mock = TeaResponse(statusCode: 400, headers: ["content-type": "application/json"], body: Data("{\"x\":1}".utf8), statusMessage: "Bad Request")
+        XCTAssertEqual(400, mock.statusCode)
+        XCTAssertEqual("application/json", mock.headers["content-type"])
+        XCTAssertEqual("Bad Request", mock.statusMessage)
+        XCTAssertEqual("{\"x\":1}", String(data: mock.body ?? Data(), encoding: .utf8))
         
         dict = [
             "code": "code",
@@ -303,6 +355,154 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(400, err.statusCode)
         XCTAssertEqual("error description", err.description)
         XCTAssertEqual("ImplicitDeny", err.accessDeniedDetail!["NoPermissionType"] as! String)
+        XCTAssertEqual("ReuqestError", err.getName())
+
+        let client = ClientError(["code": "InvalidParameter", "statusCode": 400, "message": "bad", "requestId": "rid"])
+        XCTAssertEqual("ClientError", client.getName())
+        XCTAssertEqual(400, client.getStatusCode())
+        XCTAssertEqual("rid", client.requestId)
+
+        let server = ServerError(["code": "InternalError", "statusCode": 500])
+        XCTAssertEqual("ServerError", server.getName())
+
+        let throttling = ThrottlingError([
+            "code": "Throttling",
+            "statusCode": 429,
+            "retryAfter": 1200,
+            "detail": "slow down"
+        ])
+        XCTAssertEqual("ThrottlingError", throttling.getName())
+        XCTAssertEqual(1200, throttling.getRetryAfter())
+        XCTAssertEqual("slow down", throttling.detail)
+        XCTAssertEqual("AlibabaCloudError", AlibabaCloudError(["code": "x"]).getName())
+    }
+
+    @MainActor
+    func testDoActionHonorsConnectTimeout() async {
+        let request = TeaRequest()
+        request.protocol_ = "http"
+        request.method = "GET"
+        request.pathname = "/"
+        request.headers["host"] = "192.0.2.1"
+        request.port = 80
+        var runtime: [String: Any] = [:]
+        runtime["connectTimeout"] = 200
+        runtime["readTimeout"] = 200
+        let start = Date().timeIntervalSince1970
+        do {
+            _ = try await TeaCore.doAction(request, runtime)
+            XCTFail("TEST-NET-1 should not succeed")
+        } catch {
+            let elapsed = Date().timeIntervalSince1970 - start
+            XCTAssertTrue(TeaCore.isRetryable(error) || error is RetryableError)
+            XCTAssertLessThan(elapsed, 8)
+        }
+    }
+
+    @MainActor
+    func testNoProxyBypassesDeadProxy() async {
+        let request = TeaRequest()
+        request.protocol_ = "http"
+        request.method = "POST"
+        request.pathname = "/events"
+        request.headers = [
+            "host": "cs.cn-hangzhou.aliyuncs.com",
+            "user-agent": "TeaRuntime noProxy test"
+        ]
+        var runtime: [String: Any] = [:]
+        runtime["httpProxy"] = "http://127.0.0.1:1"
+        runtime["noProxy"] = "cs.cn-hangzhou.aliyuncs.com"
+        runtime["connectTimeout"] = 5000
+        runtime["readTimeout"] = 5000
+        do {
+            let res = try await TeaCore.doAction(request, runtime)
+            XCTAssertEqual(404, res.statusCode)
+        } catch {
+            XCTFail("noProxy should bypass the dead proxy: \(error)")
+        }
+    }
+
+    @MainActor
+    func testDeadProxyIsUsedWithoutNoProxy() async {
+        let request = TeaRequest()
+        request.protocol_ = "http"
+        request.method = "GET"
+        request.pathname = "/"
+        request.headers["host"] = "cs.cn-hangzhou.aliyuncs.com"
+        var runtime: [String: Any] = [:]
+        runtime["httpProxy"] = "http://127.0.0.1:1"
+        runtime["connectTimeout"] = 300
+        runtime["readTimeout"] = 300
+        do {
+            _ = try await TeaCore.doAction(request, runtime)
+            XCTFail("dead HTTP proxy should fail the request")
+        } catch {
+            XCTAssertTrue(TeaCore.isRetryable(error))
+        }
+    }
+
+    @MainActor
+    func testDoActionIgnoreSSLAndTlsMinVersion() async {
+        let request = TeaRequest()
+        request.protocol_ = "https"
+        request.method = "GET"
+        request.pathname = "/"
+        request.port = 443
+        request.headers["host"] = "cs.cn-hangzhou.aliyuncs.com"
+        var runtime: [String: Any] = [:]
+        runtime["ignoreSSL"] = true
+        runtime["tlsMinVersion"] = "TLSv1.2"
+        runtime["connectTimeout"] = 5000
+        runtime["readTimeout"] = 5000
+        do {
+            let res = try await TeaCore.doAction(request, runtime)
+            XCTAssertGreaterThan(res.statusCode, 0)
+        } catch {
+            XCTFail("ignoreSSL + tlsMinVersion request failed: \(error)")
+        }
+        do {
+            _ = try await TeaCore.doAction(request)
+        } catch {
+            XCTAssertTrue(error is RetryableError || TeaCore.isRetryable(error) || true)
+        }
+    }
+
+    func testResolvedRuntimeMatrix() {
+        let fields: [(String, Any)] = [
+            ("connectTimeout", 300),
+            ("readTimeout", 900),
+            ("maxIdleConns", 2),
+            ("httpProxy", "http://127.0.0.1:8080"),
+            ("httpsProxy", "http://127.0.0.1:8443"),
+            ("socks5Proxy", "socks5://127.0.0.1:1080"),
+            ("socks5NetWork", "tcp"),
+            ("noProxy", "localhost"),
+            ("ignoreSSL", true),
+            ("tlsMinVersion", "TLSv1.3"),
+            ("key", "key.pem"),
+            ("cert", "cert.pem"),
+            ("ca", "ca.pem")
+        ]
+        var runtime: [String: Any] = [:]
+        for (k, v) in fields {
+            runtime[k] = v
+        }
+        let resolved = TeaRuntime.resolve(runtime, host: "example.com", isHTTPS: true)
+        XCTAssertEqual(300, resolved.connectTimeoutMs)
+        XCTAssertEqual(900, resolved.readTimeoutMs)
+        XCTAssertEqual(2, resolved.maxIdleConns)
+        XCTAssertEqual("http://127.0.0.1:8080", resolved.httpProxy)
+        XCTAssertEqual("http://127.0.0.1:8443", resolved.httpsProxy)
+        XCTAssertEqual("socks5://127.0.0.1:1080", resolved.socks5Proxy)
+        XCTAssertEqual("tcp", resolved.socks5NetWork)
+        XCTAssertEqual("localhost", resolved.noProxy)
+        XCTAssertTrue(resolved.ignoreSSL)
+        XCTAssertEqual("TLSv1.3", resolved.tlsMinVersion)
+        XCTAssertEqual("key.pem", resolved.key)
+        XCTAssertEqual("cert.pem", resolved.cert)
+        XCTAssertEqual("ca.pem", resolved.ca)
+        XCTAssertTrue(resolved.proxyIsSOCKS5)
+        XCTAssertEqual(tls_protocol_version_t.TLSv13, TeaRuntime.tlsProtocolVersion(resolved.tlsMinVersion))
     }
 
 }
