@@ -218,6 +218,28 @@ final class RuntimeTests: XCTestCase {
         XCTAssertNotNil(config.connectionProxyDictionary)
     }
 
+    func testApplyFloorsInsecureTlsMinVersionTo12() {
+        let v10 = TeaRuntime.resolve(["tlsMinVersion": "TLSv1.0"])
+        let config10 = URLSessionConfiguration.default
+        TeaRuntime.apply(v10, to: config10)
+        XCTAssertEqual(tls_protocol_version_t.TLSv12, config10.tlsMinimumSupportedProtocolVersion)
+
+        let v11 = TeaRuntime.resolve(["tlsMinVersion": "TLSv1.1"])
+        let config11 = URLSessionConfiguration.default
+        TeaRuntime.apply(v11, to: config11)
+        XCTAssertEqual(tls_protocol_version_t.TLSv12, config11.tlsMinimumSupportedProtocolVersion)
+
+        let v13 = TeaRuntime.resolve(["tlsMinVersion": "TLSv1.3"])
+        let config13 = URLSessionConfiguration.default
+        TeaRuntime.apply(v13, to: config13)
+        XCTAssertEqual(tls_protocol_version_t.TLSv13, config13.tlsMinimumSupportedProtocolVersion)
+
+        let unset = TeaRuntime.resolve([:])
+        let configDefault = URLSessionConfiguration.default
+        TeaRuntime.apply(unset, to: configDefault)
+        XCTAssertEqual(tls_protocol_version_t.TLSv12, configDefault.tlsMinimumSupportedProtocolVersion)
+    }
+
     func testUrlSessionConfigurationHelper() {
         let request = TeaRequest()
         request.protocol_ = "https"

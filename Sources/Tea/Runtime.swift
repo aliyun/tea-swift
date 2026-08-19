@@ -352,8 +352,11 @@ open class TeaRuntime {
         config.timeoutIntervalForRequest = resolved.timeoutIntervalForRequest
         config.timeoutIntervalForResource = resolved.timeoutIntervalForResource
         config.httpMaximumConnectionsPerHost = resolved.maxIdleConns
-        if let tls = tlsProtocolVersion(resolved.tlsMinVersion) {
-            config.tlsMinimumSupportedProtocolVersion = tls
+        // Floor at TLS 1.2: never apply TLS 1.0/1.1 to URLSession (insecure).
+        if case .TLSv13 = tlsProtocolVersion(resolved.tlsMinVersion) {
+            config.tlsMinimumSupportedProtocolVersion = .TLSv13
+        } else {
+            config.tlsMinimumSupportedProtocolVersion = .TLSv12
         }
         config.connectionProxyDictionary = connectionProxyDictionary(resolved)
     }
