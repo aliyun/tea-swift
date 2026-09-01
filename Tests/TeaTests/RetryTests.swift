@@ -399,4 +399,16 @@ final class RetryTests: XCTestCase {
         XCTAssertEqual(0, RandomBackoffPolicy(period: 100).getDelayTime(ctx))
         XCTAssertEqual(0, FullJitterBackoffPolicy(period: 0, cap: 0).getDelayTime(ctx))
     }
+
+    func testAnyOptionsOverloadsAndFactory() {
+        let option = RetryOptions(retryable: true, retryCondition: [
+            RetryCondition(exception: ["AErr"], errorCode: ["A1Err"])
+        ])
+        let ctx = RetryPolicyContext(retriesAttempted: 0)
+        XCTAssertTrue(TeaCore.shouldRetry(option as Any, ctx))
+        XCTAssertTrue(TeaCore.shouldRetry(["retryable": true] as [String: Any], ctx))
+        let built = TeaCore.retryPolicyContext(retriesAttempted: 2, exception: AErr(["code": "A1Err", "message": "m"]))
+        XCTAssertEqual(2, built.retriesAttempted)
+        XCTAssertEqual(100, TeaCore.getBackoffDelay(["retryable": true] as [String: Any], built))
+    }
 }

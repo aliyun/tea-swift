@@ -208,9 +208,46 @@ open class TeaCore {
         return TeaRetry.shouldRetry(options, ctx)
     }
 
+    /// Convenience for generated code that reads `_runtime["retryOptions"]` as `Any?`.
+    public static func shouldRetry(_ options: Any?, _ ctx: RetryPolicyContext) -> Bool {
+        if let o = options as? RetryOptions {
+            return shouldRetry(o, ctx)
+        }
+        if let map = options as? [String: Any] {
+            return shouldRetry(RetryOptions(map), ctx)
+        }
+        return shouldRetry(nil as RetryOptions?, ctx)
+    }
+
     /// Darabonba 2.0: backoff delay in **milliseconds**.
     public static func getBackoffDelay(_ options: RetryOptions?, _ ctx: RetryPolicyContext) -> Int {
         return TeaRetry.getBackoffDelay(options, ctx)
+    }
+
+    /// Convenience for generated code that reads `_runtime["retryOptions"]` as `Any?`.
+    public static func getBackoffDelay(_ options: Any?, _ ctx: RetryPolicyContext) -> Int {
+        if let o = options as? RetryOptions {
+            return getBackoffDelay(o, ctx)
+        }
+        if let map = options as? [String: Any] {
+            return getBackoffDelay(RetryOptions(map), ctx)
+        }
+        return getBackoffDelay(nil as RetryOptions?, ctx)
+    }
+
+    /// Factory for generated retry loops (avoids needing a model ctor in the generator).
+    public static func retryPolicyContext(
+        retriesAttempted: Int,
+        exception: Error? = nil,
+        httpRequest: TeaRequest? = nil,
+        httpResponse: TeaResponse? = nil
+    ) -> RetryPolicyContext {
+        return RetryPolicyContext(
+            retriesAttempted: retriesAttempted,
+            httpRequest: httpRequest,
+            httpResponse: httpResponse,
+            exception: exception
+        )
     }
 
     public static func isRetryable(_ e: Error) -> Bool {
