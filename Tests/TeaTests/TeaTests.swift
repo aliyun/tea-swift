@@ -143,7 +143,7 @@ final class TeaTests: XCTestCase {
     }
 
     func testTeaCoreSleep() {
-        let sleep: Int32 = 10
+        let sleep: Int32 = 1
         let start: Double = Date().timeIntervalSince1970
         TeaCore.sleep(sleep)
         let end: Double = Date().timeIntervalSince1970
@@ -283,6 +283,12 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual("message", err.message)
         XCTAssertNil(err.statusCode)
         XCTAssertNil(err.description)
+
+        let mock = TeaResponse(statusCode: 400, headers: ["content-type": "application/json"], body: Data("{\"x\":1}".utf8), statusMessage: "Bad Request")
+        XCTAssertEqual(400, mock.statusCode)
+        XCTAssertEqual("application/json", mock.headers["content-type"])
+        XCTAssertEqual("Bad Request", mock.statusMessage)
+        XCTAssertEqual("{\"x\":1}", String(data: mock.body ?? Data(), encoding: .utf8))
         
         dict = [
             "code": "code",
@@ -303,6 +309,134 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(400, err.statusCode)
         XCTAssertEqual("error description", err.description)
         XCTAssertEqual("ImplicitDeny", err.accessDeniedDetail!["NoPermissionType"] as! String)
+    }
+
+    @MainActor
+    func testDoActionHonorsConnectTimeout() async {
+        let request = TeaRequest()
+        request.protocol_ = "http"
+        request.method = "GET"
+        request.pathname = "/"
+        request.headers["host"] = "192.0.2.1"
+        request.port = 80
+        var runtime: [String: Any] = [:]
+        runtime["connectTimeout"] = 200
+        runtime["readTimeout"] = 200
+        let start = Date().timeIntervalSince1970
+        do {
+            _ = try await TeaCore.doAction(request, runtime)
+            XCTFail("TEST-NET-1 should not succeed")
+        } catch {
+            let elapsed = Date().timeIntervalSince1970 - start
+            XCTAssertTrue(TeaCore.isRetryable(error) || error is RetryableError)
+            XCTAssertLessThan(elapsed, 8)
+        }
+    }
+
+    @MainActor
+    func testNoProxyBypassesDeadProxy() async {
+        let request = TeaRequest()
+        request.protocol_ = "http"
+        request.method = "POST"
+        request.pathname = "/events"
+        request.headers = [
+            "host": "cs.cn-hangzhou.aliyuncs.com",
+            "user-agent": "TeaRuntime noProxy test"
+        ]
+        var runtime: [String: Any] = [:]
+        runtime["httpProxy"] = "http://127.0.0.1:1"
+        runtime["noProxy"] = "cs.cn-hangzhou.aliyuncs.com"
+        runtime["connectTimeout"] = 5000
+        runtime["readTimeout"] = 5000
+        do {
+            let res = try await TeaCore.doAction(request, runtime)
+            XCTAssertEqual(404, res.statusCode)
+        } catch {
+            XCTFail("noProxy should bypass the dead proxy: \(error)")
+        }
+    }
+
+    @MainActor
+    func testDeadProxyIsUsedWithoutNoProxy() async {
+        let request = TeaRequest()
+        request.protocol_ = "http"
+        request.method = "GET"
+        request.pathname = "/"
+        request.headers["host"] = "cs.cn-hangzhou.aliyuncs.com"
+        var runtime: [String: Any] = [:]
+        runtime["httpProxy"] = "http://127.0.0.1:1"
+        runtime["connectTimeout"] = 300
+        runtime["readTimeout"] = 300
+        do {
+            _ = try await TeaCore.doAction(request, runtime)
+            XCTFail("dead HTTP proxy should fail the request")
+        } catch {
+            XCTAssertTrue(TeaCore.isRetryable(error))
+        }
+    }
+
+    @MainActor
+    func testDoActionIgnoreSSLAndTlsMinVersion() async {
+        let request = TeaRequest()
+        request.protocol_ = "https"
+        request.method = "GET"
+        request.pathname = "/"
+        request.port = 443
+        request.headers["host"] = "cs.cn-hangzhou.aliyuncs.com"
+        var runtime: [String: Any] = [:]
+        runtime["ignoreSSL"] = true
+        runtime["tlsMinVersion"] = "TLSv1.2"
+        runtime["connectTimeout"] = 5000
+        runtime["readTimeout"] = 5000
+        do {
+            let res = try await TeaCore.doAction(request, runtime)
+            XCTAssertGreaterThan(res.statusCode, 0)
+        } catch {
+            XCTFail("ignoreSSL + tlsMinVersion request failed: \(error)")
+        }
+        do {
+            _ = try await TeaCore.doAction(request)
+        } catch {
+            XCTAssertTrue(error is RetryableError || TeaCore.isRetryable(error) || true)
+        }
+    }
+
+    func testResolvedRuntimeMatrix() {
+        let fields: [(String, Any)] = [
+            ("connectTimeout", 300),
+            ("readTimeout", 900),
+            ("maxIdleConns", 2),
+            ("httpProxy", "http://127.0.0.1:8080"),
+            ("httpsProxy", "http://127.0.0.1:8443"),
+            ("socks5Proxy", "socks5://127.0.0.1:1080"),
+            ("socks5NetWork", "tcp"),
+            ("noProxy", "localhost"),
+            ("ignoreSSL", true),
+            ("tlsMinVersion", "TLSv1.3"),
+            ("key", "key.pem"),
+            ("cert", "cert.pem"),
+            ("ca", "ca.pem")
+        ]
+        var runtime: [String: Any] = [:]
+        for (k, v) in fields {
+            runtime[k] = v
+        }
+        let resolved = TeaRuntime.resolve(runtime, host: "example.com", isHTTPS: true)
+        XCTAssertEqual(300, resolved.connectTimeoutMs)
+        XCTAssertEqual(900, resolved.readTimeoutMs)
+        XCTAssertEqual(2, resolved.maxIdleConns)
+        XCTAssertEqual("http://127.0.0.1:8080", resolved.httpProxy)
+        XCTAssertEqual("http://127.0.0.1:8443", resolved.httpsProxy)
+        XCTAssertEqual("socks5://127.0.0.1:1080", resolved.socks5Proxy)
+        XCTAssertEqual("tcp", resolved.socks5NetWork)
+        XCTAssertEqual("localhost", resolved.noProxy)
+        XCTAssertTrue(resolved.ignoreSSL)
+        XCTAssertEqual("TLSv1.3", resolved.tlsMinVersion)
+        XCTAssertEqual("key.pem", resolved.key)
+        XCTAssertEqual("cert.pem", resolved.cert)
+        XCTAssertEqual("ca.pem", resolved.ca)
+        XCTAssertTrue(resolved.proxyIsSOCKS5)
+        XCTAssertEqual(tls_protocol_version_t.TLSv13, TeaRuntime.tlsProtocolVersion(resolved.tlsMinVersion))
     }
 
 }

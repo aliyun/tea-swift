@@ -87,11 +87,21 @@ open class UnretryableError: TeaError {
     
 }
 
+final class InsecureServerTrustManager: ServerTrustManager, @unchecked Sendable {
+    init() {
+        super.init(allHostsMustBeEvaluated: false, evaluators: [:])
+    }
+
+    override func serverTrustEvaluator(forHost host: String) throws -> ServerTrustEvaluating? {
+        return DisabledTrustEvaluator()
+    }
+}
+
 open class TeaCore {
     private static let bufferLength: Int = 1024
-    private static let defaultConnectTimeout: Int = 5 * 1000
-    private static let defaultReadTimeout: Int = 10 * 1000
-    private static let defaultMaxIdleConnsPerHost : Int = 128
+    private static let defaultConnectTimeout: Int = TeaRuntime.defaultConnectTimeoutMs
+    private static let defaultReadTimeout: Int = TeaRuntime.defaultReadTimeoutMs
+    private static let defaultMaxIdleConnsPerHost : Int = TeaRuntime.defaultMaxIdleConnsPerHost
     
 
     public static func composeUrl(_ request: TeaRequest) -> String {
@@ -119,9 +129,10 @@ open class TeaCore {
     }
 
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    public static func doAction(_ request: TeaRequest, _ config: URLSessionConfiguration = URLSessionConfiguration.default) async throws -> TeaResponse {
+    public static func doAction(_ request: TeaRequest, _ config: URLSessionConfiguration = URLSessionConfiguration.default, serverTrustManager: ServerTrustManager? = nil) async throws -> TeaResponse {
+        let session = Session(configuration: config, serverTrustManager: serverTrustManager)
         if request.body != nil {
-            let task = AF.upload(
+            let task = session.upload(
                 request.body!,
                 to: TeaCore.composeUrl(request),
                 method: HTTPMethod(rawValue: request.method),
@@ -130,7 +141,7 @@ open class TeaCore {
             let response = await task.response
             return try TeaResponse(response)
         } else {
-            let task = AF.request(
+            let task = session.request(
                 TeaCore.composeUrl(request),
                 method: HTTPMethod(rawValue: request.method),
                 headers: HTTPHeaders(request.headers))
@@ -142,23 +153,15 @@ open class TeaCore {
 
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public static func doAction(_ request: TeaRequest, _ runtime: [String: Any]) async throws -> TeaResponse {
-        let config: URLSessionConfiguration = URLSessionConfiguration.default
-        var connectTimeout: Int? = runtime["connectTimeout"] as? Int
-        if connectTimeout == 0 {
-            connectTimeout = defaultConnectTimeout
-        }
-        var readTimeout: Int? = runtime["readTimeout"] as? Int
-        if readTimeout == 0 {
-            readTimeout = defaultReadTimeout
-        }
-        var maxIdleConns: Int? = runtime["maxIdleConns"] as? Int
-        if maxIdleConns == 0 {
-            maxIdleConns = defaultMaxIdleConnsPerHost
-        }
-        config.timeoutIntervalForRequest = TimeInterval(connectTimeout ?? defaultConnectTimeout)
-        config.timeoutIntervalForResource = TimeInterval(readTimeout ?? defaultReadTimeout)
-        config.httpMaximumConnectionsPerHost = maxIdleConns ?? defaultMaxIdleConnsPerHost
-        return try await TeaCore.doAction(request, config)
+        let resolved = TeaRuntime.resolve(
+            runtime,
+            host: request.headers["host"],
+            isHTTPS: request.protocol_.lowercased() == "https"
+        )
+        let config = URLSessionConfiguration.default
+        TeaRuntime.apply(resolved, to: config)
+        let trust: ServerTrustManager? = resolved.ignoreSSL ? InsecureServerTrustManager() : nil
+        return try await TeaCore.doAction(request, config, serverTrustManager: trust)
     }
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -380,6 +383,15 @@ open class TeaResponse {
         response = res?.response
         headers = response?.headers.dictionary ?? [:]
         statusMessage = res?.debugDescription ?? ""
+    }
+
+    public init(statusCode: Int32, headers: [String: String] = [:], body: Data? = nil, statusMessage: String = "") {
+        self.statusCode = statusCode
+        self.headers = headers
+        self.body = body
+        self.statusMessage = statusMessage
+        self.request = nil
+        self.response = nil
     }
 }
 

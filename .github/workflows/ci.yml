@@ -11,37 +11,31 @@ defaults:
 
 jobs:
 
-  build-macos-latest:
-    name: Swift ${{ matrix.swift }} on macos-latest
+  build:
+    name: ${{ matrix.name }}
     strategy:
-      matrix:
-        swift: ["5.9", "5.10", "6.1"]
       fail-fast: false
-    runs-on: macos-latest
-    steps:
-    - uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: ${{ matrix.swift }}
-    - uses: actions/checkout@v4
-    - name: Verify Xcode Version
-      run: xcodebuild -version
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
-
-  build-macos-11:
-    name: Swift ${{ matrix.swift }} on macos-11
-    strategy:
       matrix:
-        swift: ["5.6", "5.7", "5.8"]
-      fail-fast: false
-    runs-on: macos-11
+        include:
+          # macos-latest is macos-26 (Xcode 26 / Swift 6.3 SDK). setup-swift
+          # 5.9–6.1 cannot compile Package.swift against that SDK.
+          # macos-11 / macos-13 are retired; macos-14 is in brownout.
+          - os: macos-15
+            xcode_select: /Applications/Xcode_16.4.app/Contents/Developer
+            name: Xcode 16.4 on macos-15
+          - os: macos-26
+            xcode_select: ""
+            name: default Xcode on macos-26
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: ${{ matrix.swift }}
     - uses: actions/checkout@v4
+    - name: Select Xcode
+      if: matrix.xcode_select != ''
+      run: sudo xcode-select -s "${{ matrix.xcode_select }}"
+    - name: Verify toolchain
+      run: |
+        xcodebuild -version
+        swift --version
     - name: Build
       run: swift build -v
     - name: Run tests
