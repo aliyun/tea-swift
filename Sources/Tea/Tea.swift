@@ -38,41 +38,21 @@ open class ReuqestError: TeaError {
     public var code: String?
     public var statusCode: Int?
     public var data: [String: Any]?
-    public var description_: String?
-    public var detail: String?
-    public var requestId: String?
-    public var retryAfter: Int64?
+    public var description: String?
     public var accessDeniedDetail: [String: Any]?
-    public var name: String = "ReuqestError"
     
     public init(_ map: [String: Any]?) {
         super.init()
         message = map?["message"] as? String
         code = map?["code"] as? String
-        description_ = map?["description"] as? String
-        detail = map?["detail"] as? String
-        requestId = map?["requestId"] as? String ?? map?["request_id"] as? String
+        description = map?["description"] as? String
         accessDeniedDetail = map?["accessDeniedDetail"] as? [String: Any]
-        if let retry = TeaRuntime.intValue(map?["retryAfter"]) {
-            retryAfter = Int64(retry)
-        }
-        if map?["statusCode"] != nil {
-            statusCode = TeaRuntime.intValue(map?["statusCode"])
-        }
         if map?["data"] != nil {
             data = map?["data"] as? [String: Any]
-            if statusCode == nil, data?["statusCode"] != nil {
-                statusCode = TeaRuntime.intValue(data?["statusCode"])
-            }
-            if requestId == nil {
-                requestId = data?["requestId"] as? String ?? data?["RequestId"] as? String
+            if data?["statusCode"] != nil {
+                statusCode = data?["statusCode"] as? Int
             }
         }
-    }
-
-    public var description: String? {
-        get { description_ }
-        set { description_ = newValue }
     }
     
     public func getCode() -> String? {
@@ -82,43 +62,7 @@ open class ReuqestError: TeaError {
     public func getStatusCode() -> Int? {
         return statusCode
     }
-
-    public func getName() -> String {
-        return name
-    }
-
-    public func getRetryAfter() -> Int64? {
-        return retryAfter
-    }
     
-}
-
-open class AlibabaCloudError: ReuqestError {
-    public override init(_ map: [String: Any]?) {
-        super.init(map)
-        name = "AlibabaCloudError"
-    }
-}
-
-open class ClientError: AlibabaCloudError {
-    public override init(_ map: [String: Any]?) {
-        super.init(map)
-        name = "ClientError"
-    }
-}
-
-open class ServerError: AlibabaCloudError {
-    public override init(_ map: [String: Any]?) {
-        super.init(map)
-        name = "ServerError"
-    }
-}
-
-open class ThrottlingError: AlibabaCloudError {
-    public override init(_ map: [String: Any]?) {
-        super.init(map)
-        name = "ThrottlingError"
-    }
 }
 
 open class RetryableError: TeaError {
@@ -259,52 +203,8 @@ open class TeaCore {
         return backOffTime
     }
 
-    public static func getBackoffDelay(_ dict: Any?, _ retryTimes: Int32, _ error: Error? = nil) -> Int32 {
-        if let throttling = error as? ThrottlingError, let retryAfter = throttling.retryAfter, retryAfter > 0 {
-            return Int32(min(retryAfter, Int64(TeaRuntime.maxBackoffDelayMs)))
-        }
-        if let requestError = error as? ReuqestError, let retryAfter = requestError.retryAfter, retryAfter > 0,
-           requestError.getName().contains("Throttling") {
-            return Int32(min(retryAfter, Int64(TeaRuntime.maxBackoffDelayMs)))
-        }
-        guard let dic = dict as? [String: Any] else {
-            return 0
-        }
-        let policy = (TeaRuntime.stringValue(dic["policy"]) ?? "").lowercased()
-        if policy.isEmpty || policy == "no" {
-            return 0
-        }
-        let period = TeaRuntime.intValue(dic["period"]) ?? 0
-        if period <= 0 {
-            return 0
-        }
-        let retries = max(Int(retryTimes) - 1, 0)
-        if policy == "fixed" || policy == "equal" {
-            return Int32(min(period, Int(TeaRuntime.maxBackoffDelayMs)))
-        }
-        let shift = min(retries, 30)
-        let delay = Int64(period) << shift
-        return Int32(min(delay, Int64(TeaRuntime.maxBackoffDelayMs)))
-    }
-
     public static func isRetryable(_ e: Error) -> Bool {
-        if e is RetryableError || e is ThrottlingError || e is ServerError {
-            return true
-        }
-        let name = String(describing: type(of: e))
-        if name.contains("Throttling") {
-            return true
-        }
-        if name.contains("ServerError") || name.contains("ServerException") {
-            return true
-        }
-        if let requestError = e as? ReuqestError {
-            let logical = requestError.getName()
-            if logical.contains("Throttling") || logical.contains("Server") {
-                return true
-            }
-        }
-        return false
+        return e is RetryableError
     }
     
     public static func timeNow() -> Int32 {
@@ -312,10 +212,7 @@ open class TeaCore {
     }
     
     public static func sleep(_ time: Int32) -> Void {
-        if time <= 0 {
-            return
-        }
-        Thread.sleep(forTimeInterval: TeaRuntime.millisecondsToTimeInterval(Int(time)))
+        Thread.sleep(forTimeInterval: Double(time))
     }
     
     public static func toReadable(_ string: String) -> InputStream {

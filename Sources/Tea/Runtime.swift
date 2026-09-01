@@ -101,7 +101,6 @@ open class TeaRuntime {
     public static let defaultConnectTimeoutMs: Int = 5 * 1000
     public static let defaultReadTimeoutMs: Int = 10 * 1000
     public static let defaultMaxIdleConnsPerHost: Int = 128
-    public static let maxBackoffDelayMs: Int32 = 3 * 24 * 60 * 60 * 1000
 
     public static func millisecondsToTimeInterval(_ milliseconds: Int) -> TimeInterval {
         return TimeInterval(milliseconds) / 1000.0

@@ -143,14 +143,11 @@ final class TeaTests: XCTestCase {
     }
 
     func testTeaCoreSleep() {
-        let sleep: Int32 = 50
+        let sleep: Int32 = 1
         let start: Double = Date().timeIntervalSince1970
         TeaCore.sleep(sleep)
         let end: Double = Date().timeIntervalSince1970
-        XCTAssertTrue((end - start) >= 0.04)
-        XCTAssertTrue((end - start) < 2)
-        TeaCore.sleep(0)
-        TeaCore.sleep(-1)
+        XCTAssertTrue(Int((end - start)) >= sleep)
     }
 
     @MainActor
@@ -245,50 +242,9 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(1, TeaCore.getBackoffTime(dict, 3))
     }
 
-    func testTeaCoreGetBackoffDelay() {
-        XCTAssertEqual(0, TeaCore.getBackoffDelay(nil, 1))
-        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "no", "period": 1000], 1))
-        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "", "period": 1000], 1))
-        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 0], 1))
-        XCTAssertEqual(0, TeaCore.getBackoffDelay(["policy": "Exponential", "period": -2], 2))
-
-        XCTAssertEqual(1000, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 1))
-        XCTAssertEqual(2000, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 2))
-        XCTAssertEqual(4000, TeaCore.getBackoffDelay(["policy": "yes", "period": 1000], 3))
-        XCTAssertEqual(1000, TeaCore.getBackoffDelay(["policy": "Fixed", "period": 1000], 5))
-        XCTAssertEqual(1000, TeaCore.getBackoffDelay(["policy": "equal", "period": 1000], 5))
-        XCTAssertEqual(TeaRuntime.maxBackoffDelayMs, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 31))
-
-        let throttling = ThrottlingError([
-            "code": "Throttling",
-            "retryAfter": 1500
-        ])
-        XCTAssertEqual(1500, TeaCore.getBackoffDelay(["policy": "Exponential", "period": 1000], 3, throttling))
-
-        let named = ReuqestError([
-            "code": "Throttling.User",
-            "retryAfter": 800
-        ])
-        named.name = "ThrottlingException"
-        XCTAssertEqual(800, TeaCore.getBackoffDelay(["policy": "no"], 1, named))
-    }
-
     func testTeaCoreIsRetryable() {
         XCTAssertFalse(TeaCore.isRetryable(ValidateError("foo")))
         XCTAssertTrue(TeaCore.isRetryable(RetryableError(AFError.explicitlyCancelled)))
-        XCTAssertTrue(TeaCore.isRetryable(ThrottlingError(["code": "Throttling"])))
-        XCTAssertTrue(TeaCore.isRetryable(ServerError(["code": "InternalError"])))
-        XCTAssertFalse(TeaCore.isRetryable(ClientError(["code": "InvalidParameter"])))
-        let openapiLike = ReuqestError(["code": "Throttling"])
-        openapiLike.name = "ThrottlingException"
-        XCTAssertTrue(TeaCore.isRetryable(openapiLike))
-        let serverLike = ReuqestError(["code": "ServiceUnavailable"])
-        serverLike.name = "ServerException"
-        XCTAssertTrue(TeaCore.isRetryable(serverLike))
-        enum DummyThrottling: Error { case x }
-        enum DummyServerError: Error { case y }
-        XCTAssertTrue(TeaCore.isRetryable(DummyThrottling.x))
-        XCTAssertTrue(TeaCore.isRetryable(DummyServerError.y))
     }
 
     func testTeaConverterMerge() {
@@ -327,8 +283,6 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual("message", err.message)
         XCTAssertNil(err.statusCode)
         XCTAssertNil(err.description)
-        err.description = "set"
-        XCTAssertEqual("set", err.description)
 
         let mock = TeaResponse(statusCode: 400, headers: ["content-type": "application/json"], body: Data("{\"x\":1}".utf8), statusMessage: "Bad Request")
         XCTAssertEqual(400, mock.statusCode)
@@ -355,26 +309,6 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(400, err.statusCode)
         XCTAssertEqual("error description", err.description)
         XCTAssertEqual("ImplicitDeny", err.accessDeniedDetail!["NoPermissionType"] as! String)
-        XCTAssertEqual("ReuqestError", err.getName())
-
-        let client = ClientError(["code": "InvalidParameter", "statusCode": 400, "message": "bad", "requestId": "rid"])
-        XCTAssertEqual("ClientError", client.getName())
-        XCTAssertEqual(400, client.getStatusCode())
-        XCTAssertEqual("rid", client.requestId)
-
-        let server = ServerError(["code": "InternalError", "statusCode": 500])
-        XCTAssertEqual("ServerError", server.getName())
-
-        let throttling = ThrottlingError([
-            "code": "Throttling",
-            "statusCode": 429,
-            "retryAfter": 1200,
-            "detail": "slow down"
-        ])
-        XCTAssertEqual("ThrottlingError", throttling.getName())
-        XCTAssertEqual(1200, throttling.getRetryAfter())
-        XCTAssertEqual("slow down", throttling.detail)
-        XCTAssertEqual("AlibabaCloudError", AlibabaCloudError(["code": "x"]).getName())
     }
 
     @MainActor
