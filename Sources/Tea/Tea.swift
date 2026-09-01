@@ -203,6 +203,16 @@ open class TeaCore {
         return backOffTime
     }
 
+    /// Darabonba 2.0: whether another attempt should be made.
+    public static func shouldRetry(_ options: RetryOptions?, _ ctx: RetryPolicyContext) -> Bool {
+        return TeaRetry.shouldRetry(options, ctx)
+    }
+
+    /// Darabonba 2.0: backoff delay in **milliseconds**.
+    public static func getBackoffDelay(_ options: RetryOptions?, _ ctx: RetryPolicyContext) -> Int {
+        return TeaRetry.getBackoffDelay(options, ctx)
+    }
+
     public static func isRetryable(_ e: Error) -> Bool {
         return e is RetryableError
     }
@@ -210,9 +220,18 @@ open class TeaCore {
     public static func timeNow() -> Int32 {
         return Int32(Date().timeIntervalSince1970)
     }
-    
+
+    /// Classic Tea 1.x: `time` is **seconds** (paired with `getBackoffTime`).
     public static func sleep(_ time: Int32) -> Void {
         Thread.sleep(forTimeInterval: Double(time))
+    }
+
+    /// Darabonba 2.0: `milliseconds` (paired with `getBackoffDelay`).
+    public static func sleep(_ milliseconds: Int) -> Void {
+        if milliseconds <= 0 {
+            return
+        }
+        Thread.sleep(forTimeInterval: Double(milliseconds) / 1000.0)
     }
     
     public static func toReadable(_ string: String) -> InputStream {
