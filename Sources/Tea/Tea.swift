@@ -84,7 +84,11 @@ open class UnretryableError: TeaError {
         request = req
         couse = err
     }
-    
+
+    /// Generated Dara 2.0 retry loops throw with the policy context.
+    public convenience init(_ req: TeaRequest?, _ context: RetryPolicyContext) {
+        self.init(req, context.exception)
+    }
 }
 
 final class InsecureServerTrustManager: ServerTrustManager, @unchecked Sendable {
