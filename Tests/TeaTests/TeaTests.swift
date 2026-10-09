@@ -192,18 +192,19 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
 
         dict["policy"] = "yes"
+        dict["period"] = ""
         XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
         for period in [1, "1"] as [Any] {
             dict["period"] = period
             XCTAssertEqual(1, TeaCore.getBackoffTime(dict, 3))
         }
-        for period in [0, -1, "0", "-1"] as [Any] {
+        for period in [0, -1, "0", "-1", Int(Int32.min), "-2147483648"] as [Any] {
             dict["period"] = period
             XCTAssertEqual(3, TeaCore.getBackoffTime(dict, 3))
         }
-        for period in ["", "invalid", "2147483648", NSNull()] as [Any] {
+        for period in [Int(Int32.max), "2147483647"] as [Any] {
             dict["period"] = period
-            XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
+            XCTAssertEqual(Int32.max, TeaCore.getBackoffTime(dict, 3))
         }
         dict["policy"] = ""
         XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))

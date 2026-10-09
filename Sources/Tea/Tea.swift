@@ -254,11 +254,17 @@ open class TeaCore {
             return backOffTime
         }
 
-        if let period = TeaRuntime.intValue(dic?["period"]) {
-            if period <= 0 {
+        let period: String
+        if let value = dic?["period"] as? Int {
+            period = String(value)
+        } else {
+            period = dic?["period"] as! String
+        }
+        if period != "" {
+            backOffTime = Int32(period)!
+            if backOffTime <= 0 {
                 return retryTimes
             }
-            backOffTime = Int32(exactly: period) ?? 0
         }
 
         return backOffTime
