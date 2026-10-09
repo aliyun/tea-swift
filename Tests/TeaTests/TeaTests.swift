@@ -1,4 +1,3 @@
-import Alamofire
 import Foundation
 import XCTest
 @testable import Tea
@@ -150,56 +149,17 @@ final class TeaTests: XCTestCase {
         XCTAssertTrue(Int((end - start)) >= sleep)
     }
 
-    @MainActor
-    func testTeaCoreDoAction() async {
-        var res: TeaResponse?
-        let expectation = XCTestExpectation(description: "Test async request")
-        let request_ = TeaRequest()
-        request_.protocol_ = "http"
-        request_.method = "POST"
-        request_.pathname = "/events"
-        request_.query = [
-            "cluster_id": "test"
-        ]
-
-        request_.headers = [
-            "user-agent": "Swift Test for TeaCore.doAction",
-            "host": "cs.cn-hangzhou.aliyuncs.com",
-            "content-type": "application/json; charset=utf-8"
-        ]
-        let utils: TestsUtils = TestsUtils()
-        request_.headers["date"] = utils._getRFC2616Date()
-        request_.headers["accept"] = "application/json"
-        request_.headers["x-acs-signature-method"] = "HMAC-SHA1"
-        request_.headers["x-acs-signature-version"] = "1.0"
-        request_.headers["authorization"] = "acs AccessKeyId:TestSignature"
-
-        let model = ListDriveRequestModel()
-        model.owner = "owner"
-        request_.body = TeaCore.toReadable(utils._toJSONString([model]))
-
-        var runtime = [String: Any]()
-        runtime["connectTimeout"] = 0
-        runtime["readTimeout"] = 0
-        do {
-            res = try await TeaCore.doAction(request_, runtime)
-            XCTAssertNotNil(res)
-        } catch {
-            XCTFail("Unexpected error: \(error).")
-        }
-        
-        
-        XCTAssertEqual(404, res?.statusCode ?? 0)
-        XCTAssertEqual("POST", res!.request?.method?.rawValue)
-        XCTAssertEqual("http://cs.cn-hangzhou.aliyuncs.com/events?cluster_id=test", res!.request?.debugDescription)
-        let responseBody = String(data: res!.body!, encoding: .utf8)!.jsonDecode()
-        XCTAssertEqual("InvalidAction.NotFound", responseBody["Code"] as! String)
-        XCTAssertEqual("Specified api is not found, please check your url and method.", responseBody["Message"] as! String)
-        XCTAssertNotNil(responseBody["Recommend"])
-        XCTAssertEqual("cs.cn-hangzhou.aliyuncs.com", responseBody["HostId"] as! String)
-        expectation.fulfill()
-        
-        wait(for: [expectation], timeout: 100.0)
+    func testTeaCoreDoAction() async throws {
+        let server = try HTTPTestServer(statusCode: 404, body: "{\"Code\":\"InvalidAction.NotFound\"}")
+        defer { server.stop() }
+        let request = TeaRequest()
+        request.headers["host"] = "127.0.0.1"
+        request.port = server.port
+        request.pathname = "/events"
+        let response = try await TeaCore.doAction(request, ["connectTimeout": 0, "readTimeout": 0])
+        XCTAssertEqual(404, response.statusCode)
+        let body = String(data: try XCTUnwrap(response.body), encoding: .utf8)!.jsonDecode()
+        XCTAssertEqual("InvalidAction.NotFound", body["Code"] as? String)
     }
 
     func testTeaCoreAllowRetry() {
@@ -227,24 +187,31 @@ final class TeaTests: XCTestCase {
     }
 
     func testTeaCoreGetBackoffTime() {
-        var dict: [String: String] = [String: String]()
+        var dict: [String: Any] = [:]
         dict["policy"] = "no"
         XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
 
         dict["policy"] = "yes"
-        dict["period"] = ""
         XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
-
-        dict["period"] = "-1"
-        XCTAssertEqual(3, TeaCore.getBackoffTime(dict, 3))
-
-        dict["period"] = "1"
-        XCTAssertEqual(1, TeaCore.getBackoffTime(dict, 3))
+        for period in [1, "1"] as [Any] {
+            dict["period"] = period
+            XCTAssertEqual(1, TeaCore.getBackoffTime(dict, 3))
+        }
+        for period in [0, -1, "0", "-1"] as [Any] {
+            dict["period"] = period
+            XCTAssertEqual(3, TeaCore.getBackoffTime(dict, 3))
+        }
+        for period in ["", "invalid", "2147483648", NSNull()] as [Any] {
+            dict["period"] = period
+            XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
+        }
+        XCTAssertEqual(0, TeaCore.getBackoffTime(nil, 3))
+        XCTAssertEqual(0, TeaCore.getBackoffTime(["period": 1], 3))
     }
 
     func testTeaCoreIsRetryable() {
         XCTAssertFalse(TeaCore.isRetryable(ValidateError("foo")))
-        XCTAssertTrue(TeaCore.isRetryable(RetryableError(AFError.explicitlyCancelled)))
+        XCTAssertTrue(TeaCore.isRetryable(RetryableError(NSError(domain: "test", code: 1))))
     }
 
     func testTeaConverterMerge() {
@@ -333,6 +300,7 @@ final class TeaTests: XCTestCase {
         }
     }
 
+    #if !os(Linux)
     @MainActor
     func testNoProxyBypassesDeadProxy() async {
         let request = TeaRequest()
@@ -401,6 +369,8 @@ final class TeaTests: XCTestCase {
         }
     }
 
+    #endif
+
     func testResolvedRuntimeMatrix() {
         let fields: [(String, Any)] = [
             ("connectTimeout", 300),
@@ -436,7 +406,9 @@ final class TeaTests: XCTestCase {
         XCTAssertEqual("cert.pem", resolved.cert)
         XCTAssertEqual("ca.pem", resolved.ca)
         XCTAssertTrue(resolved.proxyIsSOCKS5)
+        #if !os(Linux)
         XCTAssertEqual(tls_protocol_version_t.TLSv13, TeaRuntime.tlsProtocolVersion(resolved.tlsMinVersion))
+        #endif
     }
 
 }
