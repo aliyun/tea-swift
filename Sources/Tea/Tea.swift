@@ -247,12 +247,21 @@ open class TeaCore {
     }
 
     public static func getBackoffTime(_ dict: Any?, _ retryTimes: Int32) -> Int32 {
-        guard let dic = dict as? [String: Any],
-              let policy = dic["policy"] as? String, !policy.isEmpty, policy != "no",
-              let period = TeaRuntime.intValue(dic["period"]) else {
-            return 0
+        var backOffTime: Int32 = 0
+        let dic = dict as? [String: Any]
+        let policy: String = dic?["policy"] as? String ?? ""
+        if policy == "" || policy.isEmpty || policy == "no" {
+            return backOffTime
         }
-        return period <= 0 ? retryTimes : (Int32(exactly: period) ?? 0)
+
+        if let period = TeaRuntime.intValue(dic?["period"]) {
+            if period <= 0 {
+                return retryTimes
+            }
+            backOffTime = Int32(exactly: period) ?? 0
+        }
+
+        return backOffTime
     }
 
     public static func isRetryable(_ e: Error) -> Bool {
@@ -426,14 +435,22 @@ open class TeaResponse {
     public let body: Data?
     
     #if !os(Linux)
-    internal convenience init(_ res: DataResponse<Data, AFError>?) throws {
+    /// The original URLRequest for the response.
+    public let request: URLRequest?
+
+    /// The HTTPURLResponse object.
+    public let response: HTTPURLResponse?
+
+    public init(_ res: DataResponse<Data, AFError>?) throws {
         if res?.error != nil {
             throw RetryableError(res?.error)
         }
-        self.init(statusCode: Int32(res?.response?.statusCode ?? 0),
-                  headers: res?.response?.headers.dictionary ?? [:],
-                  body: res?.data,
-                  statusMessage: res?.debugDescription ?? "")
+        statusCode = Int32(res?.response?.statusCode ?? 0)
+        body = res?.data
+        request = res?.request
+        response = res?.response
+        headers = response?.headers.dictionary ?? [:]
+        statusMessage = res?.debugDescription ?? ""
     }
     #endif
 
@@ -442,6 +459,10 @@ open class TeaResponse {
         self.headers = headers
         self.body = body
         self.statusMessage = statusMessage
+        #if !os(Linux)
+        self.request = nil
+        self.response = nil
+        #endif
     }
 }
 

@@ -34,7 +34,8 @@ let package = Package(
         .testTarget(
             name: "TeaTests",
             dependencies: [
-                "Tea"
+                "Tea",
+                transportProduct
             ]),
     ],
     swiftLanguageVersions: [.v5]

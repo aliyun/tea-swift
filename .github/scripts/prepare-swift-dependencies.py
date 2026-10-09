@@ -18,7 +18,7 @@ SOURCES = {
     "credentials-swift": ("credentials-swift", "3c8377c6103fa730bfde6f0bd70720ee9f6d196f", ""),
     "tea-utils": ("tea-util", "98f8e74d6f61a5445803f49a52a51118200cb82d", "swift"),
     "openapi-util": ("darabonba-openapi-util", "938e5b6bc3c5799716ad259c17d86c0433b33365", "swift"),
-    "alibabacloud-gateway-spi": ("alibabacloud-gateway", "f123a88ce8b9a43169e118a94a0a2555f6f8b5c7", "alibabacloud-gateway-spi/swift"),
+    "alibabacloud-gateway-spi": ("alibabacloud-gateway", "b05ddb84cbd2a6951f6c1d850205edea413c69be", "alibabacloud-gateway-spi/swift"),
     "tea-xml": ("tea-xml", "1307e6a6de9400bcfa3c1f2f1d3ac284f86cd04d", "swift"),
 }
 URLS = {
