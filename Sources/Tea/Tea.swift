@@ -249,7 +249,7 @@ open class TeaCore {
     public static func getBackoffTime(_ dict: Any?, _ retryTimes: Int32) -> Int32 {
         var backOffTime: Int32 = 0
         let dic = dict as? [String: Any]
-        let policy: String = dic?["policy"] as? String ?? ""
+        let policy: String = dic?["policy"] as! String
         if policy == "" || policy.isEmpty || policy == "no" {
             return backOffTime
         }

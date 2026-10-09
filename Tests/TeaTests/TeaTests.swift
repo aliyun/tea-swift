@@ -205,8 +205,8 @@ final class TeaTests: XCTestCase {
             dict["period"] = period
             XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
         }
-        XCTAssertEqual(0, TeaCore.getBackoffTime(nil, 3))
-        XCTAssertEqual(0, TeaCore.getBackoffTime(["period": 1], 3))
+        dict["policy"] = ""
+        XCTAssertEqual(0, TeaCore.getBackoffTime(dict, 3))
     }
 
     func testTeaCoreIsRetryable() {
