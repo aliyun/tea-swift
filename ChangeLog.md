@@ -2,7 +2,6 @@
 * Add Linux HTTP support through AsyncHTTPClient, including connect/read timeouts in milliseconds and retryable network errors. Apple platforms retain Alamofire and their existing runtime options.
 * Preserve `TeaResponse.request`, `TeaResponse.response`, and the public Alamofire response initializer on Apple platforms. Both transports support `init(statusCode:headers:body:statusMessage:)`.
 * Add cancellable `try await TeaCore.sleepAsync(_:)` for retry loops; its argument remains seconds. The synchronous `sleep(_:)` remains available for existing callers.
-* Add Linux Swift 5.6.3 CI coverage and allow AsyncHTTPClient 1.19.0 for the minimum supported toolchain.
 * Linux currently buffers request/response bodies in memory and closes the HTTP client after each request; connections are not reused between calls. Proxy, custom TLS, and connection-pool runtime options remain Apple-only.
 
 ### 2025-05-15 Version 1.0.3

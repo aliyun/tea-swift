@@ -15,10 +15,10 @@ import tempfile
 
 # Public Swift package identities map to reviewed source-repository commits.
 SOURCES = {
-    "credentials-swift": ("credentials-swift", "5f791693f1637db4a8547cc5feaf0acf351ea883", ""),
-    "tea-utils": ("tea-util", "80cc78166e12bc8f7ace3cc4e0ee85516e00fec6", "swift"),
+    "credentials-swift": ("credentials-swift", "3c8377c6103fa730bfde6f0bd70720ee9f6d196f", ""),
+    "tea-utils": ("tea-util", "98f8e74d6f61a5445803f49a52a51118200cb82d", "swift"),
     "openapi-util": ("darabonba-openapi-util", "938e5b6bc3c5799716ad259c17d86c0433b33365", "swift"),
-    "alibabacloud-gateway-spi": ("alibabacloud-gateway", "8de4c2a6b39cfff3d99348f16f042263035ced5c", "alibabacloud-gateway-spi/swift"),
+    "alibabacloud-gateway-spi": ("alibabacloud-gateway", "b05ddb84cbd2a6951f6c1d850205edea413c69be", "alibabacloud-gateway-spi/swift"),
     "tea-xml": ("tea-xml", "1307e6a6de9400bcfa3c1f2f1d3ac284f86cd04d", "swift"),
 }
 URLS = {
@@ -73,7 +73,7 @@ def main():
         original = manifest.read_text()
 
         def replace(match):
-            url = match[1][:-4] if match[1].endswith(".git") else match[1]
+            url = match[1].removesuffix(".git")
             identity = URLS.get(url)
             if identity is None:
                 return match[0]
