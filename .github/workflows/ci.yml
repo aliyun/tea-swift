@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        swift: ["5.10-jammy", "6.1-jammy"]
+        swift: ["5.6.3-focal", "5.10-jammy", "6.1-jammy"]
     steps:
     - uses: actions/checkout@v4
     - run: swift --version

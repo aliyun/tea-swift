@@ -32,7 +32,7 @@ public class ListDriveResponse: TeaModel {
         }
         
         public override func fromMap(_ dict: [String: Any?]?) -> Void {
-            guard let dict else { return }
+            guard let dict = dict else { return }
             if let value = dict["name"] as? String {
                 self.name = value
             }
@@ -79,7 +79,7 @@ public class ListDriveResponse: TeaModel {
     }
     
     public override func fromMap(_ dict: [String: Any?]?) -> Void {
-        guard let dict else { return }
+        guard let dict = dict else { return }
         if let value = dict["requestId"] as? String {
             self.requestId = value
         }
@@ -133,7 +133,7 @@ public class ListDriveRequestModel: TeaModel {
     }
     
     public override func fromMap(_ dict: [String: Any?]?) -> Void {
-        guard let dict else { return }
+        guard let dict = dict else { return }
         if let value = dict["limit"] as? Int {
             self.limit = value
         }

@@ -4,7 +4,7 @@
 import PackageDescription
 
 #if os(Linux)
-let transport: Package.Dependency = .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.21.0")
+let transport: Package.Dependency = .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0")
 let transportProduct: Target.Dependency = .product(name: "AsyncHTTPClient", package: "async-http-client")
 #else
 let transport: Package.Dependency = .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.6.2")
