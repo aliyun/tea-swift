@@ -202,7 +202,7 @@ open class TeaCore {
             connect: .milliseconds(Int64(runtime.connectTimeoutMs)),
             read: .milliseconds(Int64(runtime.readTimeoutMs))
         ))
-        // ponytail: connections are not reused across calls; add an owned client lifecycle when pooling is needed.
+        // connections are not reused across calls; add an owned client lifecycle when pooling is needed.
         let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
         let result: TeaResponse
         do {
