@@ -8,10 +8,19 @@ import PackageDescription
 #endif
 
 #if os(Linux)
-let transport: Package.Dependency = .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.21.0")
+var transportDependencies: [Package.Dependency] = [
+    .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.21.0")
+]
+#if compiler(<5.9)
+// Newer NIO manifests use APIs unavailable in Swift 5.8.
+transportDependencies.append(.package(url: "https://github.com/apple/swift-nio-transport-services.git", "1.19.0"..<"1.24.0"))
+transportDependencies.append(.package(url: "https://github.com/apple/swift-nio-extras.git", "1.13.0"..<"1.25.0"))
+#endif
 let transportProduct: Target.Dependency = .product(name: "AsyncHTTPClient", package: "async-http-client")
 #else
-let transport: Package.Dependency = .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.6.2")
+let transportDependencies: [Package.Dependency] = [
+    .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.6.2")
+]
 let transportProduct: Target.Dependency = .product(name: "Alamofire", package: "Alamofire")
 #endif
 
@@ -26,9 +35,7 @@ let package = Package(
             name: "Tea",
             targets: ["Tea"]),
     ],
-    dependencies: [
-        transport,
-    ],
+    dependencies: transportDependencies,
     targets: [
         .target(
             name: "Tea",
