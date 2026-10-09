@@ -12,7 +12,7 @@
 
 - iOS 13.3+ / macOS 10.15+
 - Xcode 11.3+
-- Swift 5.6
+- Apple 平台：Swift 5.6；Linux：Swift 5.8+（使用 Swift Package Manager）
 
 ## 安装
 
