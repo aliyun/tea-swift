@@ -73,7 +73,7 @@ def main():
         original = manifest.read_text()
 
         def replace(match):
-            url = match[1].removesuffix(".git")
+            url = match[1][:-4] if match[1].endswith(".git") else match[1]
             identity = URLS.get(url)
             if identity is None:
                 return match[0]
