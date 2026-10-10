@@ -3,6 +3,10 @@
 
 import PackageDescription
 
+#if os(Linux) && compiler(<5.9)
+#error("Tea on Linux requires Swift 5.9 or later.")
+#endif
+
 #if os(Linux)
 let transport: Package.Dependency = .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0")
 let transportProduct: Target.Dependency = .product(name: "AsyncHTTPClient", package: "async-http-client")
