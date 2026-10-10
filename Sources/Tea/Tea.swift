@@ -1,4 +1,8 @@
+#if os(Linux)
+import AsyncHTTPClient
+#else
 import Alamofire
+#endif
 import Foundation
 import Swift
 
@@ -87,6 +91,7 @@ open class UnretryableError: TeaError {
     
 }
 
+#if !os(Linux)
 final class InsecureServerTrustManager: ServerTrustManager, @unchecked Sendable {
     init() {
         super.init(allHostsMustBeEvaluated: false, evaluators: [:])
@@ -96,6 +101,7 @@ final class InsecureServerTrustManager: ServerTrustManager, @unchecked Sendable 
         return DisabledTrustEvaluator()
     }
 }
+#endif
 
 open class TeaCore {
     private static let bufferLength: Int = 1024
@@ -128,6 +134,7 @@ open class TeaCore {
         return url
     }
 
+    #if !os(Linux)
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public static func doAction(_ request: TeaRequest, _ config: URLSessionConfiguration = URLSessionConfiguration.default, serverTrustManager: ServerTrustManager? = nil) async throws -> TeaResponse {
         let session = Session(configuration: config, serverTrustManager: serverTrustManager)
@@ -150,6 +157,7 @@ open class TeaCore {
             return try TeaResponse(response)
         }
     }
+    #endif
 
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public static func doAction(_ request: TeaRequest, _ runtime: [String: Any]) async throws -> TeaResponse {
@@ -158,11 +166,65 @@ open class TeaCore {
             host: request.headers["host"],
             isHTTPS: request.protocol_.lowercased() == "https"
         )
+        #if os(Linux)
+        return try await doLinuxAction(request, resolved)
+        #else
         let config = URLSessionConfiguration.default
         TeaRuntime.apply(resolved, to: config)
         let trust: ServerTrustManager? = resolved.ignoreSSL ? InsecureServerTrustManager() : nil
         return try await TeaCore.doAction(request, config, serverTrustManager: trust)
+        #endif
     }
+
+    #if os(Linux)
+    private static func doLinuxAction(_ request: TeaRequest, _ runtime: ResolvedRuntime) async throws -> TeaResponse {
+        var outgoing = HTTPClientRequest(url: composeUrl(request))
+        outgoing.method = .init(rawValue: request.method)
+        for (name, value) in request.headers {
+            outgoing.headers.add(name: name, value: value)
+        }
+        if let stream = request.body {
+            stream.open()
+            defer { stream.close() }
+            var data = Data()
+            var buffer = [UInt8](repeating: 0, count: bufferLength)
+            while true {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                guard count >= 0 else {
+                    throw RetryableError(stream.streamError ?? TeaError("Unable to read request body"))
+                }
+                if count == 0 { break }
+                data.append(contentsOf: buffer.prefix(count))
+            }
+            outgoing.body = .bytes(data)
+        }
+        let configuration = HTTPClient.Configuration(timeout: .init(
+            connect: .milliseconds(Int64(runtime.connectTimeoutMs)),
+            read: .milliseconds(Int64(runtime.readTimeoutMs))
+        ))
+        // connections are not reused across calls; add an owned client lifecycle when pooling is needed.
+        let client = HTTPClient(eventLoopGroupProvider: .singleton, configuration: configuration)
+        let result: TeaResponse
+        do {
+            let response = try await client.execute(outgoing, deadline: .distantFuture)
+            var body = Data()
+            for try await chunk in response.body {
+                body.append(contentsOf: chunk.readableBytesView)
+            }
+            var headers: [String: String] = [:]
+            for (name, value) in response.headers {
+                headers[name.lowercased()] = value
+            }
+            result = TeaResponse(statusCode: Int32(response.status.code), headers: headers, body: body)
+        } catch {
+            try? await client.shutdown()
+            try Task.checkCancellation()
+            throw RetryableError(error)
+        }
+        try await client.shutdown()
+        return result
+    }
+    #endif
     
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public static func doAction(_ request: TeaRequest) async throws -> TeaResponse {
@@ -192,7 +254,12 @@ open class TeaCore {
             return backOffTime
         }
 
-        let period: String = dic?["period"] as! String
+        let period: String
+        if let value = dic?["period"] as? Int {
+            period = String(value)
+        } else {
+            period = dic?["period"] as! String
+        }
         if period != "" {
             backOffTime = Int32(period)!
             if backOffTime <= 0 {
@@ -213,6 +280,12 @@ open class TeaCore {
     
     public static func sleep(_ time: Int32) -> Void {
         Thread.sleep(forTimeInterval: Double(time))
+    }
+
+    public static func sleepAsync(_ time: Int32) async throws {
+        try Task.checkCancellation()
+        guard time > 0 else { return }
+        try await Task.sleep(nanoseconds: UInt64(time) * 1_000_000_000)
     }
     
     public static func toReadable(_ string: String) -> InputStream {
@@ -367,6 +440,7 @@ open class TeaResponse {
     /// The response data.
     public let body: Data?
     
+    #if !os(Linux)
     /// The original URLRequest for the response.
     public let request: URLRequest?
 
@@ -384,14 +458,17 @@ open class TeaResponse {
         headers = response?.headers.dictionary ?? [:]
         statusMessage = res?.debugDescription ?? ""
     }
+    #endif
 
     public init(statusCode: Int32, headers: [String: String] = [:], body: Data? = nil, statusMessage: String = "") {
         self.statusCode = statusCode
         self.headers = headers
         self.body = body
         self.statusMessage = statusMessage
+        #if !os(Linux)
         self.request = nil
         self.response = nil
+        #endif
     }
 }
 
@@ -413,4 +490,3 @@ func httpQueryString(_ query: [String: Any]) -> String {
     }
     return url
 }
-

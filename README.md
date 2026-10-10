@@ -12,7 +12,7 @@ English | [简体中文](./README-CN.md)
 
 - iOS 13.3+ / macOS 10.15+
 - Xcode 11.3+
-- Swift 5.6
+- Swift 5.6+ on Apple platforms / Swift 5.9+ on Linux
 
 ## Installation
 

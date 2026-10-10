@@ -3,6 +3,18 @@
 
 import PackageDescription
 
+#if os(Linux) && compiler(<5.9)
+#error("Tea on Linux requires Swift 5.9 or later.")
+#endif
+
+#if os(Linux)
+let transport: Package.Dependency = .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.19.0")
+let transportProduct: Target.Dependency = .product(name: "AsyncHTTPClient", package: "async-http-client")
+#else
+let transport: Package.Dependency = .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.6.2")
+let transportProduct: Target.Dependency = .product(name: "Alamofire", package: "Alamofire")
+#endif
+
 let package = Package(
     name: "Tea",
     platforms: [.macOS(.v10_15),
@@ -15,19 +27,19 @@ let package = Package(
             targets: ["Tea"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.6.2"),
+        transport,
     ],
     targets: [
         .target(
             name: "Tea",
             dependencies: [
-                .product(name: "Alamofire", package: "Alamofire")
+                transportProduct
             ]),
         .testTarget(
             name: "TeaTests",
             dependencies: [
                 "Tea",
-                .product(name: "Alamofire", package: "Alamofire")
+                transportProduct
             ]),
     ],
     swiftLanguageVersions: [.v5]
