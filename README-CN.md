@@ -52,6 +52,16 @@ dependencies: [
     ]),
 ```
 
+## Linux HTTP 诊断
+
+设置环境变量 `TEA_LINUX_TRACE=1` 可确认请求进入 AsyncHTTPClient 传输实现，并在响应读取及客户端关闭完成后输出 HTTP 状态码。例如：
+
+```bash
+TEA_LINUX_TRACE=1 swift run <your-executable>
+```
+
+日志默认关闭，开启后输出到标准错误，不包含 URL、请求头、请求体或凭证。HTTP 响应完成不代表 API 业务成功，仍需检查返回内容；这些日志也不验证退避重试。
+
 ## 问题
 
 [提交 Issue](https://github.com/aliyun/tea-swift/issues/new)，不符合指南的问题可能会立即关闭。
