@@ -52,16 +52,6 @@ In addition, you also need to add `"Tea"` to the `dependencies` of the `target`,
     ])
 ```
 
-## Linux HTTP diagnostics
-
-Set `TEA_LINUX_TRACE=1` to log entry into the AsyncHTTPClient transport and the HTTP status after reading the response and shutting down the client. For example:
-
-```bash
-TEA_LINUX_TRACE=1 swift run <your-executable>
-```
-
-Diagnostics are disabled by default and write to standard error without URLs, headers, bodies, or credentials. A completed HTTP response does not imply API success; check the response contents. These messages do not validate retry backoff.
-
 ## Issues
 
 [Opening an Issue](https://github.com/aliyun/tea-swift/issues/new), Issues not conforming to the guidelines may be closed immediately.
