@@ -6,7 +6,7 @@ import CFNetwork
 import Security
 #endif
 
-/// Resolved HTTP runtime used by URLSession / Alamofire.
+/// Resolved HTTP runtime shared by the platform transports.
 /// Timeout fields in RuntimeOptions are milliseconds; TimeInterval values are seconds.
 public struct ResolvedRuntime: Equatable {
     public var connectTimeoutMs: Int
@@ -230,6 +230,7 @@ open class TeaRuntime {
         return false
     }
 
+    #if !os(Linux)
     public static func tlsProtocolVersion(_ version: String?) -> tls_protocol_version_t? {
         guard let version = version?.trimmingCharacters(in: .whitespacesAndNewlines), !version.isEmpty else {
             return nil
@@ -247,6 +248,7 @@ open class TeaRuntime {
             return nil
         }
     }
+    #endif
 
     public static func resolve(_ runtime: [String: Any], host: String? = nil, isHTTPS: Bool = false) -> ResolvedRuntime {
         var connect = intValue(runtime["connectTimeout"]) ?? 0
@@ -312,6 +314,7 @@ open class TeaRuntime {
         return resolved
     }
 
+    #if !os(Linux)
     public static func connectionProxyDictionary(_ resolved: ResolvedRuntime) -> [AnyHashable: Any]? {
         guard !resolved.bypassProxy, let host = resolved.proxyHost, let port = resolved.proxyPort else {
             return nil
@@ -368,4 +371,5 @@ open class TeaRuntime {
         apply(resolved, to: config)
         return config
     }
+    #endif
 }
