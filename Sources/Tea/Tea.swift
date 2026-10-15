@@ -69,11 +69,21 @@ open class ReuqestError: TeaError {
     
 }
 
+private func wrappedErrorMessage(_ error: Error?) -> String? {
+    #if os(Linux)
+    // Avoid Foundation bridging of Swift class errors on Linux.
+    if let teaError = error as? TeaError {
+        return teaError.message
+    }
+    #endif
+    return error?.localizedDescription
+}
+
 open class RetryableError: TeaError {
     public var couse: Error?
     
     public init(_ err: Error?) {
-        super.init(err?.localizedDescription)
+        super.init(wrappedErrorMessage(err))
         couse = err
     }
     
@@ -84,7 +94,7 @@ open class UnretryableError: TeaError {
     public var couse: Error?
     
     public init(_ req: TeaRequest?, _ err: Error?) {
-        super.init(err?.localizedDescription)
+        super.init(wrappedErrorMessage(err))
         request = req
         couse = err
     }
