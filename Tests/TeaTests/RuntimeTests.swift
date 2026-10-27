@@ -97,6 +97,7 @@ final class RuntimeTests: XCTestCase {
         XCTAssertTrue(TeaRuntime.shouldBypassProxy(host: "aliyuncs.com", noProxy: ".aliyuncs.com"))
     }
 
+    #if !os(Linux)
     func testTlsProtocolVersion() {
         XCTAssertNil(TeaRuntime.tlsProtocolVersion(nil))
         XCTAssertNil(TeaRuntime.tlsProtocolVersion(""))
@@ -107,6 +108,7 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual(tls_protocol_version_t.TLSv10, TeaRuntime.tlsProtocolVersion("TLSv1.0"))
         XCTAssertEqual(tls_protocol_version_t.TLSv10, TeaRuntime.tlsProtocolVersion("tlsv1"))
     }
+    #endif
 
     func testResolveTimeoutsAndDefaults() {
         let empty = TeaRuntime.resolve([:])
@@ -160,11 +162,13 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual("user", resolved.proxyUser)
         XCTAssertEqual("secret", resolved.proxyPassword)
         XCTAssertFalse(resolved.proxyIsSOCKS5)
+        #if !os(Linux)
         let dict = TeaRuntime.connectionProxyDictionary(resolved)
         XCTAssertEqual(1, dict?["HTTPEnable"] as? Int)
         XCTAssertEqual("127.0.0.1", dict?["HTTPProxy"] as? String)
         XCTAssertEqual(8080, dict?["HTTPPort"] as? Int)
         XCTAssertEqual(1, dict?["HTTPSEnable"] as? Int)
+        #endif
     }
 
     func testResolveHttpsProxyPreferredForHTTPS() {
@@ -186,9 +190,11 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual("127.0.0.1", resolved.proxyHost)
         XCTAssertEqual(1080, resolved.proxyPort)
         XCTAssertEqual("tcp", resolved.socks5NetWork)
+        #if !os(Linux)
         let dict = TeaRuntime.connectionProxyDictionary(resolved)
         XCTAssertEqual(1, dict?["SOCKSEnable"] as? Int)
         XCTAssertEqual("127.0.0.1", dict?["SOCKSProxy"] as? String)
+        #endif
     }
 
     func testNoProxyBypasses() {
@@ -198,9 +204,12 @@ final class RuntimeTests: XCTestCase {
         ], host: "ecs.cn-hangzhou.aliyuncs.com", isHTTPS: true)
         XCTAssertTrue(resolved.bypassProxy)
         XCTAssertNil(resolved.proxyHost)
+        #if !os(Linux)
         XCTAssertNil(TeaRuntime.connectionProxyDictionary(resolved))
+        #endif
     }
 
+    #if !os(Linux)
     func testApplyToURLSessionConfiguration() {
         let resolved = TeaRuntime.resolve([
             "connectTimeout": 400,
@@ -217,7 +226,9 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual(tls_protocol_version_t.TLSv12, config.tlsMinimumSupportedProtocolVersion)
         XCTAssertNotNil(config.connectionProxyDictionary)
     }
+    #endif
 
+    #if !os(Linux)
     func testApplyFloorsInsecureTlsMinVersionTo12() {
         let v10 = TeaRuntime.resolve(["tlsMinVersion": "TLSv1.0"])
         let config10 = URLSessionConfiguration.default
@@ -239,7 +250,9 @@ final class RuntimeTests: XCTestCase {
         TeaRuntime.apply(unset, to: configDefault)
         XCTAssertEqual(tls_protocol_version_t.TLSv12, configDefault.tlsMinimumSupportedProtocolVersion)
     }
+    #endif
 
+    #if !os(Linux)
     func testUrlSessionConfigurationHelper() {
         let request = TeaRequest()
         request.protocol_ = "https"
@@ -256,7 +269,9 @@ final class RuntimeTests: XCTestCase {
         let noReq = TeaRuntime.urlSessionConfiguration(["readTimeout": 1000], request: nil)
         XCTAssertEqual(1.0, noReq.timeoutIntervalForRequest, accuracy: 0.0001)
     }
+    #endif
 
+    #if !os(Linux)
     func testSocks5UserPasswordInDictionary() {
         let resolved = TeaRuntime.resolve([
             "socks5Proxy": "socks5://bob:pwd@10.0.0.1:1080"
@@ -265,7 +280,9 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual("bob", dict[kCFStreamPropertySOCKSUser] as? String)
         XCTAssertEqual("pwd", dict[kCFStreamPropertySOCKSPassword] as? String)
     }
+    #endif
 
+    #if !os(Linux)
     func testHttpProxyUserPasswordInDictionary() {
         let resolved = TeaRuntime.resolve([
             "httpProxy": "http://bob:pwd@10.0.0.1:8080"
@@ -274,4 +291,5 @@ final class RuntimeTests: XCTestCase {
         XCTAssertEqual("bob", dict["kCFProxyUsername"] as? String)
         XCTAssertEqual("pwd", dict["kCFProxyPassword"] as? String)
     }
+    #endif
 }
