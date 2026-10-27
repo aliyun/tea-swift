@@ -188,7 +188,6 @@ open class TeaCore {
 
     #if os(Linux)
     private static func doLinuxAction(_ request: TeaRequest, _ runtime: ResolvedRuntime) async throws -> TeaResponse {
-        FileHandle.standardError.write(Data("[Tea] Linux transport entered: AsyncHTTPClient\n".utf8))
         var outgoing = HTTPClientRequest(url: composeUrl(request))
         outgoing.method = .init(rawValue: request.method)
         for (name, value) in request.headers {
@@ -233,7 +232,6 @@ open class TeaCore {
             throw RetryableError(error)
         }
         try await client.shutdown()
-        FileHandle.standardError.write(Data("[Tea] Linux HTTP response completed: status=\(result.statusCode)\n".utf8))
         return result
     }
     #endif
